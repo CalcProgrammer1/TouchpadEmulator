@@ -54,6 +54,8 @@ int main()
 
 	int touchscreen_fd = open("/dev/input/event2", O_RDONLY|O_NONBLOCK);
 
+	ioctl(touchscreen_fd, EVIOCGRAB, 1);
+
 	int prev_x = 0;
 	int prev_y = 0;
 
