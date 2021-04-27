@@ -34,6 +34,7 @@ int main()
 
 	ioctl(fd, UI_SET_EVBIT, EV_KEY);
 	ioctl(fd, UI_SET_KEYBIT, BTN_LEFT);
+	ioctl(fd, UI_SET_KEYBIT, BTN_RIGHT);
 
 	ioctl(fd, UI_SET_EVBIT, EV_REL);
 	ioctl(fd, UI_SET_RELBIT, REL_X);
@@ -59,7 +60,10 @@ int main()
 	int init_prev_x = 0;
 	int init_prev_y = 0;
 
+	int fingers = 0;
+
 	struct timeval time_active;
+	struct timeval two_finger_time_active;
 
 	while(1)
 	{
@@ -82,13 +86,49 @@ int main()
 				printf("key release\r\n");
 				struct timeval ret_time;
 				timersub(&touchscreen_event.time, &time_active, &ret_time);
-				if(ret_time.tv_usec < 75000)
+				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 500000)
 				{
 					printf("click\r\n");
 					emit(fd, EV_KEY, BTN_LEFT, 1);
 					emit(fd, EV_SYN, SYN_REPORT, 0);
 					emit(fd, EV_KEY, BTN_LEFT, 0);
 				}
+			}
+			if(touchscreen_event.type == EV_ABS && touchscreen_event.code == ABS_MT_TRACKING_ID && touchscreen_event.value >= 0)
+			{
+				fingers++;
+
+				if(fingers == 2)
+				{
+					two_finger_time_active = touchscreen_event.time;
+				}
+
+				printf("finger pressed, %d fingers on screen\r\n", fingers);
+			}
+			if(touchscreen_event.type == EV_ABS && touchscreen_event.code == ABS_MT_TRACKING_ID && touchscreen_event.value == -1)
+			{
+				if(fingers == 2)
+				{
+					struct timeval ret_time;
+					timersub(&touchscreen_event.time, &two_finger_time_active, &ret_time);
+
+					if(ret_time.tv_sec == 0 && ret_time.tv_usec < 500000)
+					{
+						printf("right click\r\n");
+						emit(fd, EV_KEY, BTN_RIGHT, 1);
+						emit(fd, EV_SYN, SYN_REPORT, 0);
+						emit(fd, EV_KEY, BTN_RIGHT, 0);
+					}
+				}
+
+				fingers--;
+
+				if(fingers < 0)
+				{
+					fingers = 0;
+				}
+
+				printf("finger released, %d fingers on screen\r\n", fingers);
 			}
 			if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
 			{
