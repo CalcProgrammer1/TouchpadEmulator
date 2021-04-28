@@ -156,6 +156,9 @@ int main()
 						emit(fd, EV_SYN, SYN_REPORT, 0);
 						emit(fd, EV_KEY, BTN_RIGHT, 0);
 					}
+					
+					init_prev_x = 1;
+					init_prev_y = 1;
 				}
 
 				fingers--;
