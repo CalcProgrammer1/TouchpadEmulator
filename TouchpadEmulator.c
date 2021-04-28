@@ -28,7 +28,7 @@ void emit(int fd, int type, int code, int val)
 int main()
 {
 	struct uinput_setup usetup;
-	int rotation = 0;
+	int rotation = 270;
 	int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 
 	ioctl(fd, UI_SET_EVBIT, EV_KEY);
@@ -38,6 +38,7 @@ int main()
 	ioctl(fd, UI_SET_EVBIT, EV_REL);
 	ioctl(fd, UI_SET_RELBIT, REL_X);
 	ioctl(fd, UI_SET_RELBIT, REL_Y);
+	ioctl(fd, UI_SET_RELBIT, REL_WHEEL);
 
 	ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_DIRECT);
 
@@ -67,10 +68,14 @@ int main()
 		
 	int prev_x = 0;
 	int prev_y = 0;
+	int prev_wheel_x = 0;
+	int prev_wheel_y = 0;
 
 	int init_prev_x = 0;
 	int init_prev_y = 0;
-
+	int init_prev_wheel_x = 0;
+	int init_prev_wheel_y = 0;
+	
 	int fingers = 0;
 	int dragging = 0;
 
@@ -131,6 +136,8 @@ int main()
 				if(fingers == 2)
 				{
 					two_finger_time_active = touchscreen_event.time;
+					init_prev_wheel_x = 1;
+					init_prev_wheel_y = 1;
 				}
 
 				printf("finger pressed, %d fingers on screen\r\n", fingers);
@@ -162,43 +169,75 @@ int main()
 			}
 			if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
 			{
-				if(rotation == 90)
+				if(rotation == 90 || rotation == 180)
 				{
 					touchscreen_event.value = max_x[2] - touchscreen_event.value;
 				}
 				
-				if(!init_prev_x)
+				if(fingers == 1)
 				{
-					if(rotation == 0)
+					if(!init_prev_x)
 					{
-						emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
+						if(rotation == 0 || rotation == 180)
+						{
+							emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
+						}
+						else if(rotation == 90 || rotation == 270)
+						{
+							emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
+						}
 					}
-					else if(rotation == 90)
-					{
-						emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
-					}
+						
+					prev_x = touchscreen_event.value;
+					init_prev_x = 0;
 				}
-				
-				prev_x = touchscreen_event.value;
-				init_prev_x = 0;
+				else if(fingers == 2)
+				{
+					if(init_prev_wheel_x)
+					{
+						prev_wheel_x = touchscreen_event.value;
+						init_prev_wheel_x = 0;
+					}
+					else
+					{
+						if(rotation == 90 || rotation == 270)
+						{
+							int accumulator_wheel_x = touchscreen_event.value;
+							
+							if(abs(accumulator_wheel_x - prev_wheel_x) > 15)
+							{
+								emit(fd, EV_REL, REL_WHEEL, (accumulator_wheel_x - prev_wheel_x) / 10);
+								prev_wheel_x = accumulator_wheel_x;
+							}
+						}
+					}
+				}	
+
 			}
 			if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_Y)
 			{
-				//touchscreen_event.value = max_y[2] - touchscreen_event.value;
-				if(!init_prev_y)
+				if(rotation == 180 || rotation == 270)
 				{
-					if(rotation == 0)
-					{
-						emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
-					}
-					else if(rotation == 90)
-					{
-						emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
-					}
+					touchscreen_event.value = max_y[2] - touchscreen_event.value;
 				}
-				
-				prev_y = touchscreen_event.value;
-				init_prev_y = 0;
+
+				if(fingers == 1)
+				{
+					if(!init_prev_y)
+					{
+						if(rotation == 0 || rotation == 180)
+						{
+							emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
+						}
+						else if(rotation == 90 || rotation == 270)
+						{
+							emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
+						}
+					}
+	
+					prev_y = touchscreen_event.value;
+					init_prev_y = 0;
+				}
 			}
 			if(touchscreen_event.type == EV_SYN && touchscreen_event.code == SYN_REPORT)
 			{
