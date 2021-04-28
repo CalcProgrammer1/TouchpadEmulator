@@ -28,8 +28,7 @@ void emit(int fd, int type, int code, int val)
 int main()
 {
 	struct uinput_setup usetup;
-	int i = 50;
-
+	int rotation = 0;
 	int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 
 	ioctl(fd, UI_SET_EVBIT, EV_KEY);
@@ -39,6 +38,8 @@ int main()
 	ioctl(fd, UI_SET_EVBIT, EV_REL);
 	ioctl(fd, UI_SET_RELBIT, REL_X);
 	ioctl(fd, UI_SET_RELBIT, REL_Y);
+
+	ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_DIRECT);
 
 	memset(&usetup, 0, sizeof(usetup));
 
@@ -56,6 +57,14 @@ int main()
 
 	ioctl(touchscreen_fd, EVIOCGRAB, 1);
 
+	int max_x[6];
+	int max_y[6];
+	
+	ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_X), max_x);
+	ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_Y), max_y);
+
+	printf("max x:%d max y:%d\r\n", max_x[2], max_y[2]);
+		
 	int prev_x = 0;
 	int prev_y = 0;
 
@@ -63,8 +72,10 @@ int main()
 	int init_prev_y = 0;
 
 	int fingers = 0;
+	int dragging = 0;
 
 	struct timeval time_active;
+	struct timeval time_release;
 	struct timeval two_finger_time_active;
 
 	while(1)
@@ -79,21 +90,38 @@ int main()
 			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1 && touchscreen_event.code == BTN_TOUCH)
 			{
 				time_active = touchscreen_event.time;
+				struct timeval ret_time;
+				timersub(&touchscreen_event.time, &time_release, &ret_time);
+				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
+				{
+					printf("drag started\r\n");
+					dragging = 1;
+					emit(fd, EV_KEY, BTN_LEFT, 1);
+					emit(fd, EV_SYN, SYN_REPORT, 0);
+				}
 				init_prev_x = 1;
 				init_prev_y = 1;
 				printf("key press\r\n");
 			}
 			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 0 && touchscreen_event.code == BTN_TOUCH)
 			{
+				time_release = touchscreen_event.time;
 				printf("key release\r\n");
 				struct timeval ret_time;
 				timersub(&touchscreen_event.time, &time_active, &ret_time);
-				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 500000)
+				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
 				{
 					printf("click\r\n");
 					emit(fd, EV_KEY, BTN_LEFT, 1);
 					emit(fd, EV_SYN, SYN_REPORT, 0);
 					emit(fd, EV_KEY, BTN_LEFT, 0);
+				}
+
+				if(dragging)
+				{
+					printf("drag stopped\r\n");
+					emit(fd, EV_KEY, BTN_LEFT, 0);
+					dragging = 0;
 				}
 			}
 			if(touchscreen_event.type == EV_ABS && touchscreen_event.code == ABS_MT_TRACKING_ID && touchscreen_event.value >= 0)
@@ -114,7 +142,7 @@ int main()
 					struct timeval ret_time;
 					timersub(&touchscreen_event.time, &two_finger_time_active, &ret_time);
 
-					if(ret_time.tv_sec == 0 && ret_time.tv_usec < 500000)
+					if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
 					{
 						printf("right click\r\n");
 						emit(fd, EV_KEY, BTN_RIGHT, 1);
@@ -134,16 +162,41 @@ int main()
 			}
 			if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
 			{
+				if(rotation == 90)
+				{
+					touchscreen_event.value = max_x[2] - touchscreen_event.value;
+				}
+				
 				if(!init_prev_x)
-				emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
+				{
+					if(rotation == 0)
+					{
+						emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
+					}
+					else if(rotation == 90)
+					{
+						emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
+					}
+				}
+				
 				prev_x = touchscreen_event.value;
 				init_prev_x = 0;
-				//printf("touch x: %d\r\n", touchscreen_event.value);
 			}
 			if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_Y)
 			{
+				//touchscreen_event.value = max_y[2] - touchscreen_event.value;
 				if(!init_prev_y)
-				emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
+				{
+					if(rotation == 0)
+					{
+						emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
+					}
+					else if(rotation == 90)
+					{
+						emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
+					}
+				}
+				
 				prev_y = touchscreen_event.value;
 				init_prev_y = 0;
 			}
