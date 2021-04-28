@@ -65,7 +65,11 @@ int main()
 	ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_Y), max_y);
 
 	printf("max x:%d max y:%d\r\n", max_x[2], max_y[2]);
-		
+	
+	int buttons_fd = open("/dev/input/event1", O_RDONLY|O_NONBLOCK);
+	
+	ioctl(buttons_fd, EVIOCGRAB, 1);
+	
 	int prev_x = 0;
 	int prev_y = 0;
 	int prev_wheel_x = 0;
@@ -83,7 +87,9 @@ int main()
 	struct timeval time_release;
 	struct timeval two_finger_time_active;
 
-	while(1)
+	int close_flag = 0;
+	
+	while(!close_flag)
 	{
 		struct input_event touchscreen_event;
 
@@ -245,6 +251,16 @@ int main()
 			if(touchscreen_event.type == EV_SYN && touchscreen_event.code == SYN_REPORT)
 			{
 				emit(fd, EV_SYN, SYN_REPORT, 0);
+			}
+		}
+		
+		ret = read(buttons_fd, &touchscreen_event, sizeof(touchscreen_event));
+		
+		if(ret > 0)
+		{
+			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1)
+			{
+				close_flag = 1;
 			}
 		}
 	}
