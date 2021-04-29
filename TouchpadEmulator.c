@@ -29,7 +29,7 @@ void emit(int fd, int type, int code, int val)
 int main()
 {
 	struct uinput_setup usetup;
-	int rotation = 270;
+	int rotation = 0;
 	int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 
 	ioctl(fd, UI_SET_EVBIT, EV_KEY);
@@ -121,7 +121,7 @@ int main()
 				time_active = touchscreen_event.time;
 				struct timeval ret_time;
 				timersub(&touchscreen_event.time, &time_release, &ret_time);
-				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
+				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
 				{
 					//printf("drag started\r\n");
 					dragging = 1;
@@ -138,7 +138,7 @@ int main()
 				//printf("key release\r\n");
 				struct timeval ret_time;
 				timersub(&touchscreen_event.time, &time_active, &ret_time);
-				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
+				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
 				{
 					//printf("click\r\n");
 					emit(fd, EV_KEY, BTN_LEFT, 1);
@@ -173,7 +173,7 @@ int main()
 					struct timeval ret_time;
 					timersub(&touchscreen_event.time, &two_finger_time_active, &ret_time);
 
-					if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
+					if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
 					{
 						//printf("right click\r\n");
 						emit(fd, EV_KEY, BTN_RIGHT, 1);
@@ -265,6 +265,28 @@ int main()
 					prev_y = touchscreen_event.value;
 					init_prev_y = 0;
 				}
+				else if(fingers == 2)
+				{
+					if(init_prev_wheel_y)
+					{
+						prev_wheel_y = touchscreen_event.value;
+						init_prev_wheel_y = 0;
+					}
+					else
+					{
+						if(rotation == 0 || rotation == 180)
+						{
+							int accumulator_wheel_y = touchscreen_event.value;
+							
+							if(abs(accumulator_wheel_y - prev_wheel_y) > 15)
+							{
+								emit(fd, EV_REL, REL_WHEEL, (accumulator_wheel_y - prev_wheel_y) / 10);
+								prev_wheel_y = accumulator_wheel_y;
+							}
+						}
+					}
+				}
+					
 			}
 			if(touchscreen_event.type == EV_SYN && touchscreen_event.code == SYN_REPORT)
 			{
@@ -308,8 +330,20 @@ int main()
 				}
 				if(en_key_val)
 				{
-					ioctl(touchscreen_fd, EVIOCGRAB, 1);
-					touchpad_enable = 1;
+					if(touchpad_enable)
+					{
+						rotation += 90;
+						
+						if(rotation > 270)
+						{
+							rotation = 0;
+						}
+					}
+					else
+					{
+						ioctl(touchscreen_fd, EVIOCGRAB, 1);
+						touchpad_enable = 1;
+					}
 				}
 				else if(dis_key_val)
 				{
