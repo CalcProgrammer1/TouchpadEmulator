@@ -85,9 +85,14 @@ int main()
 
 	struct timeval time_active;
 	struct timeval time_release;
+	struct timeval time_button;
 	struct timeval two_finger_time_active;
 
 	int close_flag = 0;
+	int touchpad_enable = 1;
+	
+	int en_key_val = 0;
+	int dis_key_val = 0;
 	
 	while(!close_flag)
 	{
@@ -96,7 +101,7 @@ int main()
 		//Read the touchscreen
 		int ret = read(touchscreen_fd, &touchscreen_event, sizeof(touchscreen_event));
 
-		if(ret > 0)
+		if(ret > 0 && touchpad_enable)
 		{
 			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1 && touchscreen_event.code == BTN_TOUCH)
 			{
@@ -258,9 +263,46 @@ int main()
 		
 		if(ret > 0)
 		{
-			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1)
+			if(touchscreen_event.type == EV_KEY && touchscreen_event.code == KEY_VOLUMEUP)
 			{
-				close_flag = 1;
+				if(touchscreen_event.value == 1)
+				{
+					time_button = touchscreen_event.time;
+				}
+				
+				en_key_val = touchscreen_event.value;
+			}
+			if(touchscreen_event.type == EV_KEY && touchscreen_event.code == KEY_VOLUMEDOWN)
+			{
+				if(touchscreen_event.value == 1)
+				{
+					time_button = touchscreen_event.time;
+				}
+				
+				dis_key_val = touchscreen_event.value;
+			}
+			if(touchscreen_event.type == EV_SYN && touchscreen_event.code == SYN_REPORT)
+			{
+				if(!en_key_val || !dis_key_val)
+				{
+					struct timeval ret_time;
+					timersub(&touchscreen_event.time, &time_button, &ret_time);
+
+					if(ret_time.tv_sec > 1)
+					{
+						close_flag = 1;
+					}
+				}
+				if(en_key_val)
+				{
+					ioctl(touchscreen_fd, EVIOCGRAB, 1);
+					touchpad_enable = 1;
+				}
+				else if(dis_key_val)
+				{
+					ioctl(touchscreen_fd, EVIOCGRAB, 0);
+					touchpad_enable = 0;
+				}
 			}
 		}
 	}
