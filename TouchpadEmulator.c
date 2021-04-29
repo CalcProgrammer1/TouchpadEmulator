@@ -7,6 +7,7 @@
 #include <linux/uinput.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <poll.h>
 
 #define EVENT_TYPE	EV_ABS
 #define EVENT_CODE_X	ABS_X
@@ -94,12 +95,24 @@ int main()
 	int en_key_val = 0;
 	int dis_key_val = 0;
 	
+	struct pollfd fds[2];
+	
+	fds[0].fd = touchscreen_fd;
+	fds[1].fd = buttons_fd;
+	
+	fds[0].events = POLLIN;
+	fds[1].events = POLLIN;
+	
 	while(!close_flag)
 	{
+		int ret = poll(fds, 2, 5000);
+		
+		if(ret <= 0) continue;
+		
 		struct input_event touchscreen_event;
 
 		//Read the touchscreen
-		int ret = read(touchscreen_fd, &touchscreen_event, sizeof(touchscreen_event));
+		ret = read(touchscreen_fd, &touchscreen_event, sizeof(touchscreen_event));
 
 		if(ret > 0 && touchpad_enable)
 		{
@@ -110,24 +123,24 @@ int main()
 				timersub(&touchscreen_event.time, &time_release, &ret_time);
 				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
 				{
-					printf("drag started\r\n");
+					//printf("drag started\r\n");
 					dragging = 1;
 					emit(fd, EV_KEY, BTN_LEFT, 1);
 					emit(fd, EV_SYN, SYN_REPORT, 0);
 				}
 				init_prev_x = 1;
 				init_prev_y = 1;
-				printf("key press\r\n");
+				//printf("key press\r\n");
 			}
 			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 0 && touchscreen_event.code == BTN_TOUCH)
 			{
 				time_release = touchscreen_event.time;
-				printf("key release\r\n");
+				//printf("key release\r\n");
 				struct timeval ret_time;
 				timersub(&touchscreen_event.time, &time_active, &ret_time);
 				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
 				{
-					printf("click\r\n");
+					//printf("click\r\n");
 					emit(fd, EV_KEY, BTN_LEFT, 1);
 					emit(fd, EV_SYN, SYN_REPORT, 0);
 					emit(fd, EV_KEY, BTN_LEFT, 0);
@@ -135,7 +148,7 @@ int main()
 
 				if(dragging)
 				{
-					printf("drag stopped\r\n");
+					//printf("drag stopped\r\n");
 					emit(fd, EV_KEY, BTN_LEFT, 0);
 					dragging = 0;
 				}
@@ -151,7 +164,7 @@ int main()
 					init_prev_wheel_y = 1;
 				}
 
-				printf("finger pressed, %d fingers on screen\r\n", fingers);
+				//printf("finger pressed, %d fingers on screen\r\n", fingers);
 			}
 			if(touchscreen_event.type == EV_ABS && touchscreen_event.code == ABS_MT_TRACKING_ID && touchscreen_event.value == -1)
 			{
@@ -162,7 +175,7 @@ int main()
 
 					if(ret_time.tv_sec == 0 && ret_time.tv_usec < 100000)
 					{
-						printf("right click\r\n");
+						//printf("right click\r\n");
 						emit(fd, EV_KEY, BTN_RIGHT, 1);
 						emit(fd, EV_SYN, SYN_REPORT, 0);
 						emit(fd, EV_KEY, BTN_RIGHT, 0);
@@ -179,7 +192,7 @@ int main()
 					fingers = 0;
 				}
 
-				printf("finger released, %d fingers on screen\r\n", fingers);
+				//printf("finger released, %d fingers on screen\r\n", fingers);
 			}
 			if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
 			{
