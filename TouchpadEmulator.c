@@ -170,7 +170,8 @@ int main(int argc, char* argv[])
 
 				if(fingers == 2)
 				{
-					two_finger_time_active = touchscreen_event.time;
+					two_finger_time_active.tv_sec = touchscreen_event.input_event_sec;
+					two_finger_time_active.tv_usec = touchscreen_event.input_event_usec;
 					init_prev_wheel_x = 1;
 					init_prev_wheel_y = 1;
 				}
