@@ -123,9 +123,12 @@ int main(int argc, char* argv[])
 		{
 			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1 && touchscreen_event.code == BTN_TOUCH)
 			{
-				time_active = touchscreen_event.time;
+				struct timeval cur_time;
+				cur_time.tv_sec = touchscreen_event.input_event_sec;
+				cur_time.tv_usec = touchscreen_event.input_event_usec;
+				time_active = cur_time;
 				struct timeval ret_time;
-				timersub(&touchscreen_event.time, &time_release, &ret_time);
+				timersub(&cur_time, &time_release, &ret_time);
 				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
 				{
 					//printf("drag started\r\n");
@@ -139,10 +142,13 @@ int main(int argc, char* argv[])
 			}
 			if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 0 && touchscreen_event.code == BTN_TOUCH)
 			{
-				time_release = touchscreen_event.time;
+				struct timeval cur_time;
+				cur_time.tv_sec = touchscreen_event.input_event_sec;
+				cur_time.tv_usec = touchscreen_event.input_event_usec;
+				time_release = cur_time;
 				//printf("key release\r\n");
 				struct timeval ret_time;
-				timersub(&touchscreen_event.time, &time_active, &ret_time);
+				timersub(&cur_time, &time_active, &ret_time);
 				if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
 				{
 					//printf("click\r\n");
@@ -175,8 +181,11 @@ int main(int argc, char* argv[])
 			{
 				if(fingers == 2)
 				{
+					struct timeval cur_time;
+					cur_time.tv_sec = touchscreen_event.input_event_sec;
+					cur_time.tv_usec = touchscreen_event.input_event_usec;
 					struct timeval ret_time;
-					timersub(&touchscreen_event.time, &two_finger_time_active, &ret_time);
+					timersub(&cur_time, &two_finger_time_active, &ret_time);
 
 					if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
 					{
@@ -307,7 +316,8 @@ int main(int argc, char* argv[])
 			{
 				if(touchscreen_event.value == 1)
 				{
-					time_button = touchscreen_event.time;
+					time_button.tv_sec = touchscreen_event.input_event_sec;
+					time_button.tv_usec = touchscreen_event.input_event_usec;
 				}
 				
 				en_key_val = touchscreen_event.value;
@@ -316,7 +326,8 @@ int main(int argc, char* argv[])
 			{
 				if(touchscreen_event.value == 1)
 				{
-					time_button = touchscreen_event.time;
+					time_button.tv_sec = touchscreen_event.input_event_sec;
+					time_button.tv_usec = touchscreen_event.input_event_usec;
 				}
 				
 				dis_key_val = touchscreen_event.value;
@@ -325,8 +336,11 @@ int main(int argc, char* argv[])
 			{
 				if(!en_key_val || !dis_key_val)
 				{
+					struct timeval cur_time;
+					cur_time.tv_sec = touchscreen_event.input_event_sec;
+					cur_time.tv_usec = touchscreen_event.input_event_usec;
 					struct timeval ret_time;
-					timersub(&touchscreen_event.time, &time_button, &ret_time);
+					timersub(&cur_time, &time_button, &ret_time);
 
 					if(ret_time.tv_sec > 1)
 					{
