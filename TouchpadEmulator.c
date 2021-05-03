@@ -26,8 +26,13 @@ void emit(int fd, int type, int code, int val)
 	write(fd, &ie, sizeof(ie));
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+	if(argc != 3)
+	{
+		return 0;
+	}
+
 	struct uinput_setup usetup;
 	int rotation = 0;
 	int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
@@ -55,22 +60,22 @@ int main()
 
 	sleep(1);
 
-	int touchscreen_fd = open("/dev/input/event2", O_RDONLY|O_NONBLOCK);
+	int touchscreen_fd = open(argv[1], O_RDONLY|O_NONBLOCK);
 
 	ioctl(touchscreen_fd, EVIOCGRAB, 1);
 
 	int max_x[6];
 	int max_y[6];
-	
+
 	ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_X), max_x);
 	ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_Y), max_y);
 
 	printf("max x:%d max y:%d\r\n", max_x[2], max_y[2]);
-	
-	int buttons_fd = open("/dev/input/event1", O_RDONLY|O_NONBLOCK);
-	
+
+	int buttons_fd = open(argv[2], O_RDONLY|O_NONBLOCK);
+
 	ioctl(buttons_fd, EVIOCGRAB, 1);
-	
+
 	int prev_x = 0;
 	int prev_y = 0;
 	int prev_wheel_x = 0;
