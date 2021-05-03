@@ -12,6 +12,10 @@ Compiling:
 
 * `gcc TouchpadEmulator.c -o TouchpadEmulator`
 
+Determine Input Events:
+
+* Start by running `cat /dev/input/event0`.  Press the volume keys and touch the touchscreen.  If it spams unreadable characters to the terminal when you use the input device, you've found the correct event.  If not, move on to `event1` and try again.  You will want to find the `event` for both the volume key and the touchscreen.
+
 Running:
 
 * `sudo modprobe uinput`
