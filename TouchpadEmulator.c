@@ -308,7 +308,8 @@ int main(int argc, char* argv[])
 	struct timeval two_finger_time_active;
 
 	int close_flag = 0;
-	int touchpad_enable = 1;
+	int touchpad_enable = 0;
+	int keyboard_enable = 1;
 	
 	int en_key_val = 0;
 	int dis_key_val = 0;
@@ -568,13 +569,29 @@ int main(int argc, char* argv[])
 
 					if(!touchpad_enable)
 					{
+						system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
 						ioctl(touchscreen_fd, EVIOCGRAB, 1);
 						touchpad_enable = 1;
 						open_uinput(&fd);
+						keyboard_enable = 0;
 					}
 				}
 				else if(dis_key_val)
 				{
+					if(!touchpad_enable)
+					{
+						if(keyboard_enable)
+						{
+							system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+							keyboard_enable = 0;
+						}
+						else
+						{
+							system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+							keyboard_enable = 1;
+						}
+					}
+					
 					ioctl(touchscreen_fd, EVIOCGRAB, 0);
 					touchpad_enable = 0;
 					close_uinput(&fd);
@@ -586,6 +603,7 @@ int main(int argc, char* argv[])
 	sleep(1);
 
 	close_uinput(&fd);
+	system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
 	
 	return 0;
 }
