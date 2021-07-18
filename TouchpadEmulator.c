@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 	sleep(1);
 
 	char touchscreen_dev_path[1024];
-	
+
 	strcpy(touchscreen_dev_path, "/dev/input/event");
 	strcat(touchscreen_dev_path, argv[1]);
 
@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
 	ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_X), max_x);
 	ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_Y), max_y);
 
-	printf("max x:%d max y:%d\r\n", max_x[2], max_y[2]);
+	printf("Touchscreen Max X:%d, Max y:%d\r\n", max_x[2], max_y[2]);
 
 	char buttons_dev_path[1024];
 
@@ -95,6 +95,17 @@ int main(int argc, char* argv[])
 	strcat(buttons_dev_path, argv[2]);
 
 	int buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
+
+	strcpy(buttons_dev_path, "/sys/class/input/event");
+	strcat(buttons_dev_path, argv[2]);
+	strcat(buttons_dev_path, "/device/name");
+
+	int buttons_name_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
+
+	memset(buttons_dev_path, 0, 1024);
+	read(buttons_name_fd, buttons_dev_path, 1024);
+
+	printf("Buttons Device: %s", buttons_dev_path);
 
 	ioctl(buttons_fd, EVIOCGRAB, 1);
 
