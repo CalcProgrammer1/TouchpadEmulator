@@ -185,6 +185,30 @@ char* query(char* param, char* param2)
    return(query_buf);
 }
 
+// rotation_from_accelerometer_orientation
+//
+// Determine the orientation angle from SensorProxy's AccelerometerOrientation property
+
+int rotation_from_accelerometer_orientation(const char* orientation_str)
+{
+	if(strncmp(orientation, "right-up", 64) == 0)
+	{
+		return(90);
+	}
+	else if(strncmp(orientation, "bottom-up", 64) == 0)
+	{
+		return(180);
+	}
+	else if(strncmp(orientation, "left-up", 64) == 0)
+	{
+		return(270);
+	}
+	else //orientation == "normal"
+	{
+		return(0);
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	if(argc != 3)
@@ -194,24 +218,7 @@ int main(int argc, char* argv[])
 
 	const char* orientation = query("net.hadess.SensorProxy", "AccelerometerOrientation");
 
-	int rotation = 0;
-
-	if(strncmp(orientation, "normal", 64) == 0)
-	{
-		rotation = 0;
-	}
-	else if(strncmp(orientation, "right-up", 64) == 0)
-	{
-		rotation = 90;
-	}
-	else if(strncmp(orientation, "bottom-up", 64) == 0)
-	{
-		rotation = 180;
-	}
-	else if(strncmp(orientation, "left-up", 64) == 0)
-	{
-		rotation = 270;
-	}
+	int rotation = rotation_from_accelerometer_orientation(orientation);
 
 	int fd = 0;
 
@@ -543,12 +550,8 @@ int main(int argc, char* argv[])
 				{
 					if(touchpad_enable)
 					{
-						rotation += 90;
-						
-						if(rotation > 270)
-						{
-							rotation = 0;
-						}
+						const char* orientation2 = query("net.hadess.SensorProxy", "AccelerometerOrientation");
+						int rotation = rotation_from_accelerometer_orientation(orientation2);
 					}
 					else
 					{
