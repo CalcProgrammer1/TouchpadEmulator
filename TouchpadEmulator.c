@@ -10,6 +10,9 @@
 #include <unistd.h>
 #include <poll.h>
 
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib.h>
+
 #define EVENT_TYPE	EV_ABS
 #define EVENT_CODE_X	ABS_X
 #define EVENT_CODE_Y	ABS_Y
@@ -87,6 +90,36 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 	
+	// connect dbus
+
+	DBusError err;
+	DBusConnection* conn;
+	int ret;
+	// initialise the errors
+	dbus_error_init(&err);
+
+	// connect to the bus
+	conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+	if (dbus_error_is_set(&err)) { 
+		fprintf(stderr, "Connection Error (%s)\n", err.message); 
+		dbus_error_free(&err); 
+	}
+	if (NULL == conn) { 
+		exit(1); 
+	}
+
+	// request a name on the bus
+	ret = dbus_bus_request_name(conn, "test.method.server", 
+			DBUS_NAME_FLAG_REPLACE_EXISTING 
+			, &err);
+	if (dbus_error_is_set(&err)) { 
+		fprintf(stderr, "Name Error (%s)\n", err.message); 
+		dbus_error_free(&err); 
+	}
+	if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) { 
+		exit(1);
+	}
+
 	int rotation = 0;
 	int fd = 0;
 
@@ -445,6 +478,8 @@ int main(int argc, char* argv[])
 	sleep(1);
 
 	close_uinput(&fd);
+	
+   	dbus_connection_close(conn);
 	
 	return 0;
 }
