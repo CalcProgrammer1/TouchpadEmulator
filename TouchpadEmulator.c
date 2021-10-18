@@ -189,7 +189,7 @@ char* query(char* param, char* param2)
 //
 // Determine the orientation angle from SensorProxy's AccelerometerOrientation property
 
-int rotation_from_accelerometer_orientation(const char* orientation_str)
+int rotation_from_accelerometer_orientation(const char* orientation)
 {
 	if(strncmp(orientation, "right-up", 64) == 0)
 	{
