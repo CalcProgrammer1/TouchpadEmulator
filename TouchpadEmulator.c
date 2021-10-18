@@ -563,12 +563,10 @@ int main(int argc, char* argv[])
 				}
 				if(en_key_val)
 				{
-					if(touchpad_enable)
-					{
-						const char* orientation2 = query_accelerometer_orientation();
-						rotation = rotation_from_accelerometer_orientation(orientation2);
-					}
-					else
+					const char* orientation2 = query_accelerometer_orientation();
+					rotation = rotation_from_accelerometer_orientation(orientation2);
+
+					if(!touchpad_enable)
 					{
 						ioctl(touchscreen_fd, EVIOCGRAB, 1);
 						touchpad_enable = 1;
