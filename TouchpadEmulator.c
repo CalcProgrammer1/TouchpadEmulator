@@ -164,7 +164,7 @@ void query(char* param, char* param2)
    // read the parameters
    if (!dbus_message_iter_init(msg, &args))
       fprintf(stderr, "Message has no arguments!\n");
-   else if (DBUS_TYPE_VARIANT_AS_STRING != dbus_message_iter_get_arg_type(&args))
+   else if (118 != dbus_message_iter_get_arg_type(&args))
       fprintf(stderr, "Argument is not string! It is: %d\n", dbus_message_iter_get_arg_type(&args));
    else
       dbus_message_iter_get_basic(&args, &stat);
