@@ -112,14 +112,14 @@ void query(char* param, char* param2)
    }
 
    // request our name on the bus
-   ret = dbus_bus_request_name(conn, "test.method.caller", DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Name Error (%s)\n", err.message);
-      dbus_error_free(&err);
-   }
-   if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
-      exit(1);
-   }
+   //ret = dbus_bus_request_name(conn, "test.method.caller", DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
+   //if (dbus_error_is_set(&err)) {
+   //   fprintf(stderr, "Name Error (%s)\n", err.message);
+   //   dbus_error_free(&err);
+   //}
+   //if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
+   //   exit(1);
+   //}
 
    // create a new method call and check for errors
    msg = dbus_message_new_method_call("net.hadess.SensorProxy",
