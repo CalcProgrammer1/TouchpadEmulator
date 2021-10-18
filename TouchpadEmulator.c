@@ -94,8 +94,7 @@ void query(char* param, char* param2)
    DBusError err;
    DBusPendingCall* pending;
    int ret;
-   bool stat;
-   dbus_uint32_t level;
+   char* stat;
 
    printf("Calling remote method with %s\n", param);
 
@@ -175,19 +174,12 @@ void query(char* param, char* param2)
    // read the parameters
    if (!dbus_message_iter_init(msg, &args))
       fprintf(stderr, "Message has no arguments!\n");
-   else if (DBUS_TYPE_BOOLEAN != dbus_message_iter_get_arg_type(&args))
-      fprintf(stderr, "Argument is not boolean!\n");
+   else if (DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&args))
+      fprintf(stderr, "Argument is not string!\n");
    else
       dbus_message_iter_get_basic(&args, &stat);
 
-   if (!dbus_message_iter_next(&args))
-      fprintf(stderr, "Message has too few arguments!\n");
-   else if (DBUS_TYPE_UINT32 != dbus_message_iter_get_arg_type(&args))
-      fprintf(stderr, "Argument is not int!\n");
-   else
-      dbus_message_iter_get_basic(&args, &level);
-
-   printf("Got Reply: %d, %d\n", stat, level);
+   printf("Got Reply: %s,\r\n", stat);
 
    // free reply
    dbus_message_unref(msg);
