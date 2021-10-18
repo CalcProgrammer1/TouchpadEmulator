@@ -167,7 +167,7 @@ void query(char* param, char* param2)
    else if (118 != dbus_message_iter_get_arg_type(&args))
       fprintf(stderr, "Argument is not string! It is: %d\n", dbus_message_iter_get_arg_type(&args));
    else
-      dbus_message_iter_get_basic(&args, &stat);
+      stat = dbus_message_iter_get_signature(&args);
 
    printf("Got Reply: %s,\r\n", stat);
 
