@@ -102,7 +102,7 @@ void query(char* param, char* param2)
    dbus_error_init(&err);
 
    // connect to the system bus and check for errors
-   conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+   conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
    if (dbus_error_is_set(&err)) {
       fprintf(stderr, "Connection Error (%s)\n", err.message);
       dbus_error_free(&err);
