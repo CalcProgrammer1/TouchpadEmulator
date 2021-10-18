@@ -85,104 +85,117 @@ void close_uinput(int* fd)
 	*fd = 0;
 }
 
-/**
- * Call a method on a remote object
- */
-char* query(char* param, char* param2)
+// query_accelerometer_orientation
+//
+// Query DBus for the AccelerometerOrientation property of SensorProxy
+
+char* query_accelerometer_orientation()
 {
-   DBusMessage* msg;
-   DBusMessageIter args, args_variant;
-   DBusConnection* conn;
-   DBusError err;
-   DBusPendingCall* pending;
-   int ret;
-   char* stat;
+	DBusMessage* msg;
+	DBusMessageIter args, args_variant;
+	DBusConnection* conn;
+	DBusError err;
+	DBusPendingCall* pending;
+	int ret;
+	char* stat;
 
-   printf("Calling remote method with %s\n", param);
+   	// initialiset the errors
+   	dbus_error_init(&err);
 
-   // initialiset the errors
-   dbus_error_init(&err);
+   	// connect to the system bus and check for errors
+   	conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
 
-   // connect to the system bus and check for errors
-   conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
-   if (dbus_error_is_set(&err)) {
-      fprintf(stderr, "Connection Error (%s)\n", err.message);
-      dbus_error_free(&err);
-   }
-   if (NULL == conn) {
-      exit(1);
-   }
+   	if(dbus_error_is_set(&err))
+   	{
+		dbus_error_free(&err);
+   	}
 
-   // create a new method call and check for errors
-   msg = dbus_message_new_method_call("net.hadess.SensorProxy",
-                                      "/net/hadess/SensorProxy",
-                                      "org.freedesktop.DBus.Properties",
-                                      "Get");
-   if (NULL == msg) {
-      fprintf(stderr, "Message Null\n");
-      exit(1);
-   }
+   	if(NULL == conn)
+   	{
+      	exit(1);
+   	}
 
-   // append arguments
-   dbus_message_iter_init_append(msg, &args);
-   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &param)) {
-      fprintf(stderr, "Out Of Memory!\n");
-      exit(1);
-   }
+   	// create a new method call and check for errors
+   	msg = dbus_message_new_method_call("net.hadess.SensorProxy",
+   	                                   "/net/hadess/SensorProxy",
+   	                                   "org.freedesktop.DBus.Properties",
+   	                                   "Get");
 
-   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &param2)) {
-      fprintf(stderr, "Out Of Memory!\n");
-      exit(1);
-   }
+	if(NULL == msg)
+	{
+		exit(1);
+	}
 
-   // send message and get a handle for a reply
-   if (!dbus_connection_send_with_reply (conn, msg, &pending, -1)) { // -1 is default timeout
-      fprintf(stderr, "Out Of Memory!\n");
-      exit(1);
-   }
-   if (NULL == pending) {
-      fprintf(stderr, "Pending Call Null\n");
-      exit(1);
-   }
-   dbus_connection_flush(conn);
+   	// append arguments
+   	dbus_message_iter_init_append(msg, &args);
 
-   printf("Request Sent\n");
+   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, "net.hadess.SensorProxy"))
+   	{
+      	exit(1);
+   	}
 
-   // free message
-   dbus_message_unref(msg);
+   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, "AccelerometerOrientation"))
+	{
+      	exit(1);
+   	}
 
-   // block until we recieve a reply
-   dbus_pending_call_block(pending);
+   	// send message and get a handle for a reply
+   	if(!dbus_connection_send_with_reply (conn, msg, &pending, -1))
+   	{
+      	exit(1);
+   	}
+   	
+	if(NULL == pending)
+	{
+      	exit(1);
+   	}
 
-   // get the reply message
-   msg = dbus_pending_call_steal_reply(pending);
-   if (NULL == msg) {
-      fprintf(stderr, "Reply Null\n");
-      exit(1);
-   }
-   // free the pending message handle
-   dbus_pending_call_unref(pending);
+   	dbus_connection_flush(conn);
+
+   	// free message
+   	dbus_message_unref(msg);
+
+   	// block until we recieve a reply
+   	dbus_pending_call_block(pending);
+
+   	// get the reply message
+   	msg = dbus_pending_call_steal_reply(pending);
+
+   	if(NULL == msg)
+	{
+
+   	   exit(1);
+   	}
+
+   	// free the pending message handle
+   	dbus_pending_call_unref(pending);
 
    	// read the parameters
    	if (!dbus_message_iter_init(msg, &args))
+	{
       	fprintf(stderr, "Message has no arguments!\n");
-   	else if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(&args))
+	}
+   	else if(DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(&args))
+	{
       	fprintf(stderr, "Argument is not variant! It is: %d\n", dbus_message_iter_get_arg_type(&args));
+	}
    	else
+	{
       	dbus_message_iter_recurse(&args, &args_variant);
+		
 		if(dbus_message_iter_get_arg_type(&args_variant) == DBUS_TYPE_STRING)
 		{
 			dbus_message_iter_get_basic(&args_variant, &stat);
 		}
+	}
 
-   printf("Got Reply: %s,\r\n", stat);
+	// copy reply
+   	strncpy(query_buf, stat, 64);
 
-   strncpy(query_buf, stat, 64);
+   	// free reply
+   	dbus_message_unref(msg);
 
-   // free reply
-   dbus_message_unref(msg);
-
-   return(query_buf);
+   	return(query_buf);
 }
 
 // rotation_from_accelerometer_orientation
@@ -216,7 +229,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	const char* orientation = query("net.hadess.SensorProxy", "AccelerometerOrientation");
+	const char* orientation = query_accelerometer_orientation();
 
 	int rotation = rotation_from_accelerometer_orientation(orientation);
 
@@ -550,7 +563,7 @@ int main(int argc, char* argv[])
 				{
 					if(touchpad_enable)
 					{
-						const char* orientation2 = query("net.hadess.SensorProxy", "AccelerometerOrientation");
+						const char* orientation2 = query_accelerometer_orientation();
 						rotation = rotation_from_accelerometer_orientation(orientation2);
 					}
 					else
