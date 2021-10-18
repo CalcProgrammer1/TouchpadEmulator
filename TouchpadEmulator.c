@@ -14,6 +14,10 @@
 #define EVENT_CODE_X	ABS_X
 #define EVENT_CODE_Y	ABS_Y
 
+// emit
+//
+// Emits an input event
+
 void emit(int fd, int type, int code, int val)
 {
 	struct input_event ie;
@@ -27,27 +31,31 @@ void emit(int fd, int type, int code, int val)
 	write(fd, &ie, sizeof(ie));
 }
 
-int main(int argc, char* argv[])
+// open_uinput
+//
+// Creates the virtual mouse device
+
+void open_uinput(int* fd)
 {
-	if(argc != 3)
+	if(*fd != 0)
 	{
-		return 0;
+		return;
 	}
 
 	struct uinput_setup usetup;
-	int rotation = 0;
-	int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 
-	ioctl(fd, UI_SET_EVBIT, EV_KEY);
-	ioctl(fd, UI_SET_KEYBIT, BTN_LEFT);
-	ioctl(fd, UI_SET_KEYBIT, BTN_RIGHT);
+	*fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 
-	ioctl(fd, UI_SET_EVBIT, EV_REL);
-	ioctl(fd, UI_SET_RELBIT, REL_X);
-	ioctl(fd, UI_SET_RELBIT, REL_Y);
-	ioctl(fd, UI_SET_RELBIT, REL_WHEEL);
+	ioctl(*fd, UI_SET_EVBIT, EV_KEY);
+	ioctl(*fd, UI_SET_KEYBIT, BTN_LEFT);
+	ioctl(*fd, UI_SET_KEYBIT, BTN_RIGHT);
 
-	ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_DIRECT);
+	ioctl(*fd, UI_SET_EVBIT, EV_REL);
+	ioctl(*fd, UI_SET_RELBIT, REL_X);
+	ioctl(*fd, UI_SET_RELBIT, REL_Y);
+	ioctl(*fd, UI_SET_RELBIT, REL_WHEEL);
+
+	ioctl(*fd, UI_SET_PROPBIT, INPUT_PROP_DIRECT);
 
 	memset(&usetup, 0, sizeof(usetup));
 
@@ -56,8 +64,33 @@ int main(int argc, char* argv[])
 	usetup.id.product = 0x5678;
 	strcpy(usetup.name, "Touchpad Emulator");
 
-	ioctl(fd, UI_DEV_SETUP, &usetup);
-	ioctl(fd, UI_DEV_CREATE);
+	ioctl(*fd, UI_DEV_SETUP, &usetup);
+	ioctl(*fd, UI_DEV_CREATE);
+}
+
+// open_uinput
+//
+// Closes the virtual mouse device
+
+void close_uinput(int* fd)
+{
+	ioctl(*fd, UI_DEV_DESTROY);
+	close(*fd);
+
+	*fd = 0;
+}
+
+int main(int argc, char* argv[])
+{
+	if(argc != 3)
+	{
+		return 0;
+	}
+	
+	int rotation = 0;
+	int fd = 0;
+
+	open_uinput(&fd);
 
 	sleep(1);
 
@@ -396,12 +429,14 @@ int main(int argc, char* argv[])
 					{
 						ioctl(touchscreen_fd, EVIOCGRAB, 1);
 						touchpad_enable = 1;
+						open_uinput(&fd);
 					}
 				}
 				else if(dis_key_val)
 				{
 					ioctl(touchscreen_fd, EVIOCGRAB, 0);
 					touchpad_enable = 0;
+					close_uinput(&fd);
 				}
 			}
 		}
@@ -409,8 +444,7 @@ int main(int argc, char* argv[])
 
 	sleep(1);
 
-	ioctl(fd, UI_DEV_DESTROY);
-	close(fd);
-
+	close_uinput(&fd);
+	
 	return 0;
 }
