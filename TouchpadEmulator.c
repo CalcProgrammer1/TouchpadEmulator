@@ -129,12 +129,14 @@ char* query_accelerometer_orientation()
    	// append arguments
    	dbus_message_iter_init_append(msg, &args);
 
-   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, "net.hadess.SensorProxy"))
+	char* arg1 = "net.hadess.SensorProxy";
+	char* arg2 = "AccelerometerOrientation";
+   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &arg1))
    	{
       	exit(1);
    	}
 
-   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, "AccelerometerOrientation"))
+   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &arg2))
 	{
       	exit(1);
    	}
