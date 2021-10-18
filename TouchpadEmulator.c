@@ -17,6 +17,8 @@
 #define EVENT_CODE_X	ABS_X
 #define EVENT_CODE_Y	ABS_Y
 
+char query_buf[64];
+
 // emit
 //
 // Emits an input event
@@ -86,7 +88,7 @@ void close_uinput(int* fd)
 /**
  * Call a method on a remote object
  */
-void query(char* param, char* param2)
+char* query(char* param, char* param2)
 {
    DBusMessage* msg;
    DBusMessageIter args, args_variant;
@@ -175,8 +177,12 @@ void query(char* param, char* param2)
 
    printf("Got Reply: %s,\r\n", stat);
 
+   strncpy(query_buf, stat, 64);
+
    // free reply
    dbus_message_unref(msg);
+
+   return(query_buf);
 }
 
 int main(int argc, char* argv[])
@@ -186,9 +192,27 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	query("net.hadess.SensorProxy", "AccelerometerOrientation");
+	const char* orientation = query("net.hadess.SensorProxy", "AccelerometerOrientation");
 
 	int rotation = 0;
+
+	if(strncmp(orientation, "normal", 64) == 0)
+	{
+		rotation = 0;
+	}
+	else if(strncmp(orientation, "right-up", 64) == 0)
+	{
+		rotation = 90;
+	}
+	else if(strncmp(orientation, "bottom-up", 64) == 0)
+	{
+		rotation = 180;
+	}
+	else if(strncmp(orientation, "left-up", 64) == 0)
+	{
+		rotation = 270;
+	}
+
 	int fd = 0;
 
 	open_uinput(&fd);
