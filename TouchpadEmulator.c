@@ -89,7 +89,7 @@ void close_uinput(int* fd)
 void query(char* param, char* param2)
 {
    DBusMessage* msg;
-   DBusMessageIter args;
+   DBusMessageIter args, args_variant;
    DBusConnection* conn;
    DBusError err;
    DBusPendingCall* pending;
@@ -161,14 +161,17 @@ void query(char* param, char* param2)
    // free the pending message handle
    dbus_pending_call_unref(pending);
 
-   // read the parameters
-   if (!dbus_message_iter_init(msg, &args))
-      fprintf(stderr, "Message has no arguments!\n");
-   else if (118 != dbus_message_iter_get_arg_type(&args))
-      fprintf(stderr, "Argument is not string! It is: %d\n", dbus_message_iter_get_arg_type(&args));
-   else
-      stat = dbus_message_iter_get_signature(&args);
-	  stat = dbus_message_iter_get_signature(&args);
+   	// read the parameters
+   	if (!dbus_message_iter_init(msg, &args))
+      	fprintf(stderr, "Message has no arguments!\n");
+   	else if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(&args))
+      	fprintf(stderr, "Argument is not variant! It is: %d\n", dbus_message_iter_get_arg_type(&args));
+   	else
+      	dbus_message_iter_recurse(&args, &args_variant);
+		if(dbus_message_iter_get_arg_type(&args_variant) == DBUS_TYPE_STRING)
+		{
+			dbus_message_iter_get_basic(&args_variant, &stat);
+		}
 
    printf("Got Reply: %s,\r\n", stat);
 
