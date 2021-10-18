@@ -86,7 +86,7 @@ void close_uinput(int* fd)
 /**
  * Call a method on a remote object
  */
-void query(char* param)
+void query(char* param, char* param2)
 {
    DBusMessage* msg;
    DBusMessageIter args;
@@ -135,6 +135,11 @@ void query(char* param)
    // append arguments
    dbus_message_iter_init_append(msg, &args);
    if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &param)) {
+      fprintf(stderr, "Out Of Memory!\n");
+      exit(1);
+   }
+
+   if (!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &param2)) {
       fprintf(stderr, "Out Of Memory!\n");
       exit(1);
    }
@@ -195,7 +200,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	query("net.hadess.SensorProxy");
+	query("net.hadess.SensorProxy", "AccelerometerOrientation");
 
 	int rotation = 0;
 	int fd = 0;
