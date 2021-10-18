@@ -551,7 +551,7 @@ int main(int argc, char* argv[])
 					if(touchpad_enable)
 					{
 						const char* orientation2 = query("net.hadess.SensorProxy", "AccelerometerOrientation");
-						int rotation = rotation_from_accelerometer_orientation(orientation2);
+						rotation = rotation_from_accelerometer_orientation(orientation2);
 					}
 					else
 					{
