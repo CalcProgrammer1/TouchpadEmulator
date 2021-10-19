@@ -38,8 +38,12 @@
 /*---------------------------------------------------------*\
 | Global Variables                                          |
 \*---------------------------------------------------------*/
-int     rotation        = 0;
+int     rotation            = 0;
 char    query_buf[64];
+
+int     buttons_fd          = 0;
+int     touchscreen_fd      = 0;
+int     virtual_mouse_fd    = 0;
 
 /*---------------------------------------------------------*\
 | emit                                                      |
@@ -329,8 +333,8 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open the virtual mouse                                |
     \*-----------------------------------------------------*/
-    int fd = 0;
-    open_uinput(&fd);
+
+    open_uinput(&virtual_mouse_fd);
 
     sleep(1);
 
@@ -342,7 +346,7 @@ int main(int argc, char* argv[])
     strcpy(touchscreen_dev_path, "/dev/input/event");
     strcat(touchscreen_dev_path, argv[1]);
 
-    int touchscreen_fd = open(touchscreen_dev_path, O_RDONLY|O_NONBLOCK);
+    touchscreen_fd = open(touchscreen_dev_path, O_RDONLY|O_NONBLOCK);
 
     strcpy(touchscreen_dev_path, "/sys/class/input/event");
     strcat(touchscreen_dev_path, argv[1]);
@@ -373,7 +377,7 @@ int main(int argc, char* argv[])
     strcpy(buttons_dev_path, "/dev/input/event");
     strcat(buttons_dev_path, argv[2]);
 
-    int buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
+    buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
 
     strcpy(buttons_dev_path, "/sys/class/input/event");
     strcat(buttons_dev_path, argv[2]);
@@ -466,8 +470,8 @@ int main(int argc, char* argv[])
                 {
                     //printf("drag started\r\n");
                     dragging = 1;
-                    emit(fd, EV_KEY, BTN_LEFT, 1);
-                    emit(fd, EV_SYN, SYN_REPORT, 0);
+                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
+                    emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
                 }
                 init_prev_x = 1;
                 init_prev_y = 1;
@@ -485,15 +489,15 @@ int main(int argc, char* argv[])
                 if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
                 {
                     //printf("click\r\n");
-                    emit(fd, EV_KEY, BTN_LEFT, 1);
-                    emit(fd, EV_SYN, SYN_REPORT, 0);
-                    emit(fd, EV_KEY, BTN_LEFT, 0);
+                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
+                    emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
+                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   0);
                 }
 
                 if(dragging)
                 {
                     //printf("drag stopped\r\n");
-                    emit(fd, EV_KEY, BTN_LEFT, 0);
+                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT, 0);
                     dragging = 0;
                 }
             }
@@ -524,9 +528,9 @@ int main(int argc, char* argv[])
                     if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
                     {
                         //printf("right click\r\n");
-                        emit(fd, EV_KEY, BTN_RIGHT, 1);
-                        emit(fd, EV_SYN, SYN_REPORT, 0);
-                        emit(fd, EV_KEY, BTN_RIGHT, 0);
+                        emit(virtual_mouse_fd, EV_KEY, BTN_RIGHT,  1);
+                        emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
+                        emit(virtual_mouse_fd, EV_KEY, BTN_RIGHT,  0);
                     }
                     
                     init_prev_x = 1;
@@ -555,11 +559,11 @@ int main(int argc, char* argv[])
                     {
                         if(rotation == 0 || rotation == 180)
                         {
-                            emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
+                            emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
                         }
                         else if(rotation == 90 || rotation == 270)
                         {
-                            emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
+                            emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
                         }
                     }
                         
@@ -581,7 +585,7 @@ int main(int argc, char* argv[])
                             
                             if(abs(accumulator_wheel_x - prev_wheel_x) > 15)
                             {
-                                emit(fd, EV_REL, REL_WHEEL, (accumulator_wheel_x - prev_wheel_x) / 10);
+                                emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_x - prev_wheel_x) / 10);
                                 prev_wheel_x = accumulator_wheel_x;
                             }
                         }
@@ -602,11 +606,11 @@ int main(int argc, char* argv[])
                     {
                         if(rotation == 0 || rotation == 180)
                         {
-                            emit(fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
+                            emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
                         }
                         else if(rotation == 90 || rotation == 270)
                         {
-                            emit(fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
+                            emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
                         }
                     }
     
@@ -628,7 +632,7 @@ int main(int argc, char* argv[])
                             
                             if(abs(accumulator_wheel_y - prev_wheel_y) > 15)
                             {
-                                emit(fd, EV_REL, REL_WHEEL, (accumulator_wheel_y - prev_wheel_y) / 10);
+                                emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_y - prev_wheel_y) / 10);
                                 prev_wheel_y = accumulator_wheel_y;
                             }
                         }
@@ -638,7 +642,7 @@ int main(int argc, char* argv[])
             }
             if(touchscreen_event.type == EV_SYN && touchscreen_event.code == SYN_REPORT)
             {
-                emit(fd, EV_SYN, SYN_REPORT, 0);
+                emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
             }
         }
         
@@ -695,7 +699,7 @@ int main(int argc, char* argv[])
                     {
                         ioctl(touchscreen_fd, EVIOCGRAB, 1);
                         touchpad_enable = 1;
-                        open_uinput(&fd);
+                        open_uinput(&virtual_mouse_fd);
 
                         system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
                         keyboard_enable = 0;
@@ -716,7 +720,7 @@ int main(int argc, char* argv[])
 
                     ioctl(touchscreen_fd, EVIOCGRAB, 0);
                     touchpad_enable = 0;
-                    close_uinput(&fd);
+                    close_uinput(&virtual_mouse_fd);
                 }
             }
         }
@@ -727,7 +731,7 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Close the virtual mouse                               |
     \*-----------------------------------------------------*/
-    close_uinput(&fd);
+    close_uinput(&virtual_mouse_fd);
     
     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
 
