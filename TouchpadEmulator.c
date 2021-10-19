@@ -233,9 +233,12 @@ int rotation_from_accelerometer_orientation(const char* orientation)
 
 void *monitor_rotation(void *vargp)
 {
-    sleep(1);
-	const char* orientation = query_accelerometer_orientation();
-	rotation = rotation_from_accelerometer_orientation(orientation);   
+	while(1)
+	{
+		sleep(1);
+		const char* orientation = query_accelerometer_orientation();
+		rotation = rotation_from_accelerometer_orientation(orientation);   
+	}
 }
 
 int main(int argc, char* argv[])
