@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <poll.h>
 #include <stdbool.h>
+#include <pthread.h>
+
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
 
@@ -17,6 +19,7 @@
 #define EVENT_CODE_X	ABS_X
 #define EVENT_CODE_Y	ABS_Y
 
+int rotation = 0;
 char query_buf[64];
 
 // emit
@@ -224,6 +227,17 @@ int rotation_from_accelerometer_orientation(const char* orientation)
 	}
 }
 
+// monitor_rotation
+// 
+// Thread for monitoring rotation
+
+void *monitor_rotation(void *vargp)
+{
+    sleep(1);
+	const char* orientation = query_accelerometer_orientation();
+	rotation = rotation_from_accelerometer_orientation(orientation);   
+}
+
 int main(int argc, char* argv[])
 {
 	if(argc != 3)
@@ -232,8 +246,11 @@ int main(int argc, char* argv[])
 	}
 
 	const char* orientation = query_accelerometer_orientation();
+	rotation = rotation_from_accelerometer_orientation(orientation);
 
-	int rotation = rotation_from_accelerometer_orientation(orientation);
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, monitor_rotation, NULL);
+    pthread_join(thread_id, NULL);
 
 	int fd = 0;
 
