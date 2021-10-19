@@ -336,7 +336,7 @@ void scan_and_open_devices(char* touchscreen_device, char* buttons_device)
         /*-------------------------------------------------*\
         | Check if this input is the touchscreen            |
         \*-------------------------------------------------*/
-        if(strncmp(input_dev_buf, touchscreen_device, 1024) == 0)
+        if(strncmp(input_dev_buf, touchscreen_device, strlen(touchscreen_device)) == 0)
         {
             touchscreen_id = event_id;
         }
@@ -344,7 +344,7 @@ void scan_and_open_devices(char* touchscreen_device, char* buttons_device)
         /*-------------------------------------------------*\
         | Check if this input is the buttons                |
         \*-------------------------------------------------*/
-        if(strncmp(input_dev_buf, buttons_device, 1024) == 0)
+        if(strncmp(input_dev_buf, buttons_device, strlen(buttons_device)) == 0)
         {
             buttons_id = event_id;
         }
