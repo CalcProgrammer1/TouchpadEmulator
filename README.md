@@ -2,6 +2,8 @@ Touchpad Emulator
 
 Emulates a laptop-style touchpad device using a touchscreen.  My goal with this is to provide a virtual mouse for Linux phones and tablets that functions similarly to the virtual mouse in Microsoft's Remote Desktop Android app.
 
+This application has mostly been tested in the Phosh environment on the PinePhone.  It should support all distributions using Phosh.
+
 Dependencies:
 
 * Alpine/PostmarketOS - `sudo apk add build-base linux-headers`
@@ -10,28 +12,31 @@ Dependencies:
 
 Compiling:
 
-* `gcc TouchpadEmulator.c -o TouchpadEmulator`
+* `sh compile.sh`
 
-Determine Input Events:
+Input Events:
 
-* Start by running `cat /dev/input/event0`.  Press the volume keys and touch the touchscreen.  If it spams unreadable characters to the terminal when you use the input device, you've found the correct event.  If not, move on to `event1` and try again.  You will want to find the `event` for both the volume key and the touchscreen.
+* Touchpad Emulator now uses input event names to automatically determine the event IDs.  The event names are currently hard-coded to be PinePhone-specific, but I plan to move this to a config file soon.
+  * Touchscreen: "Goodix Capacitive TouchScreen"
+  * Buttons: "1c21800.lradc"
 
 Running:
 
-* `sudo modprobe uinput`
-* `sudo chmod 777 /dev/uinput`
-    * Could probably set up a udev rule here
-* `./TouchpadEmulator /dev/input/eventX /dev/input/eventY`
-    * `/dev/input/eventX` - Replace with input event for touchscreen
-    * `/dev/input/eventY` - Replace with input event for GPIO keys (volume up/down)
+* `sh LaunchTouchpadEmulator.sh`
+
+Installing:
+
+* After installing, you can open from the app list and type the sudo password in the prompt
+    * Copy TouchpadEmulator and LaunchTouchpadEmulator.sh to /usr/bin
+    * Copy TouchpadEmulator.desktop to /usr/share/applications
+    * Copy TouchpadEmulator.png to /usr/share/icons
 
 Controls:
 
 * Volume Up enables Touchpad Mouse mode
-    * If already in Touchpad Mouse mode, Volume Up cycles through rotations - 0, 90, 180, 270 and back to 0
 
 * Volume Down enables Touchscreen mode
-    * If already in Touchscreen mode, in the keyboard_toggle branch, Volume Down toggles on-screen keyboard on and off
+    * If already in Touchscreen mode, Volume Down toggles on-screen keyboard on and off
 
 * Holding either Volume button for 3 seconds closes the program
 
