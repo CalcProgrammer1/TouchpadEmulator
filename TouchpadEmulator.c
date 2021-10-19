@@ -9,10 +9,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <poll.h>
+#include <stdbool.h>
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib.h>
 
 #define EVENT_TYPE	EV_ABS
 #define EVENT_CODE_X	ABS_X
 #define EVENT_CODE_Y	ABS_Y
+
+char query_buf[64];
 
 // emit
 //
@@ -80,14 +85,156 @@ void close_uinput(int* fd)
 	*fd = 0;
 }
 
+// query_accelerometer_orientation
+//
+// Query DBus for the AccelerometerOrientation property of SensorProxy
+
+char* query_accelerometer_orientation()
+{
+	DBusMessage* msg;
+	DBusMessageIter args, args_variant;
+	DBusConnection* conn;
+	DBusError err;
+	DBusPendingCall* pending;
+	int ret;
+	char* stat;
+
+   	// initialiset the errors
+   	dbus_error_init(&err);
+
+   	// connect to the system bus and check for errors
+   	conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+
+   	if(dbus_error_is_set(&err))
+   	{
+		dbus_error_free(&err);
+   	}
+
+   	if(NULL == conn)
+   	{
+      	exit(1);
+   	}
+
+   	// create a new method call and check for errors
+   	msg = dbus_message_new_method_call("net.hadess.SensorProxy",
+   	                                   "/net/hadess/SensorProxy",
+   	                                   "org.freedesktop.DBus.Properties",
+   	                                   "Get");
+
+	if(NULL == msg)
+	{
+		exit(1);
+	}
+
+   	// append arguments
+   	dbus_message_iter_init_append(msg, &args);
+
+	char* arg1 = "net.hadess.SensorProxy";
+	char* arg2 = "AccelerometerOrientation";
+   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &arg1))
+   	{
+      	exit(1);
+   	}
+
+   	if(!dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &arg2))
+	{
+      	exit(1);
+   	}
+
+   	// send message and get a handle for a reply
+   	if(!dbus_connection_send_with_reply (conn, msg, &pending, -1))
+   	{
+      	exit(1);
+   	}
+   	
+	if(NULL == pending)
+	{
+      	exit(1);
+   	}
+
+   	dbus_connection_flush(conn);
+
+   	// free message
+   	dbus_message_unref(msg);
+
+   	// block until we recieve a reply
+   	dbus_pending_call_block(pending);
+
+   	// get the reply message
+   	msg = dbus_pending_call_steal_reply(pending);
+
+   	if(NULL == msg)
+	{
+
+   	   exit(1);
+   	}
+
+   	// free the pending message handle
+   	dbus_pending_call_unref(pending);
+
+   	// read the parameters
+   	if (!dbus_message_iter_init(msg, &args))
+	{
+      	fprintf(stderr, "Message has no arguments!\n");
+	}
+   	else if(DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(&args))
+	{
+      	fprintf(stderr, "Argument is not variant! It is: %d\n", dbus_message_iter_get_arg_type(&args));
+	}
+   	else
+	{
+      	dbus_message_iter_recurse(&args, &args_variant);
+		
+		if(dbus_message_iter_get_arg_type(&args_variant) == DBUS_TYPE_STRING)
+		{
+			dbus_message_iter_get_basic(&args_variant, &stat);
+		}
+	}
+
+	// copy reply
+   	strncpy(query_buf, stat, 64);
+
+   	// free reply
+   	dbus_message_unref(msg);
+
+   	return(query_buf);
+}
+
+// rotation_from_accelerometer_orientation
+//
+// Determine the orientation angle from SensorProxy's AccelerometerOrientation property
+
+int rotation_from_accelerometer_orientation(const char* orientation)
+{
+	if(strncmp(orientation, "right-up", 64) == 0)
+	{
+		return(90);
+	}
+	else if(strncmp(orientation, "bottom-up", 64) == 0)
+	{
+		return(180);
+	}
+	else if(strncmp(orientation, "left-up", 64) == 0)
+	{
+		return(270);
+	}
+	else //orientation == "normal"
+	{
+		return(0);
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	if(argc != 3)
 	{
 		return 0;
 	}
-	
-	int rotation = 0;
+
+	const char* orientation = query_accelerometer_orientation();
+
+	int rotation = rotation_from_accelerometer_orientation(orientation);
+
 	int fd = 0;
 
 	open_uinput(&fd);
@@ -418,12 +565,8 @@ int main(int argc, char* argv[])
 				{
 					if(touchpad_enable)
 					{
-						rotation += 90;
-						
-						if(rotation > 270)
-						{
-							rotation = 0;
-						}
+						const char* orientation2 = query_accelerometer_orientation();
+						rotation = rotation_from_accelerometer_orientation(orientation2);
 					}
 					else
 					{
