@@ -302,6 +302,84 @@ void *monitor_rotation(void *vargp)
     }
 }
 
+void scan_and_open_devices(char* touchscreen_device, char* buttons_device)
+{
+    int     event_id        = 0;
+    int     buttons_id      = -1;
+    int     touchscreen_id  = -1;
+
+    while((touchscreen_id == -1) || (buttons_id == -1))
+    {
+        /*-------------------------------------------------*\
+        | Create the input event name path                  |
+        \*-------------------------------------------------*/
+        char input_dev_buf[1024];
+
+        snprintf(input_dev_buf, 1024, "/sys/class/input/event%d/device/name", event_id);
+
+        /*-------------------------------------------------*\
+        | Open the input event path to get the name         |
+        \*-------------------------------------------------*/
+        int input_name_fd = open(input_dev_buf, O_RDONLY|O_NONBLOCK);
+
+        if(input_name_fd < 0)
+        {
+            break;
+        }
+
+        memset(input_dev_buf, 0, 1024);
+        read(input_name_fd, input_dev_buf, 1024);
+        close(input_name_fd);
+
+        printf("Input Device %d: %s", event_id, input_dev_buf);
+
+        /*-------------------------------------------------*\
+        | Check if this input is the touchscreen            |
+        \*-------------------------------------------------*/
+        if(strncmp(input_dev_buf, touchscreen_device, 1024) == 0)
+        {
+            touchscreen_id = event_id;
+        }
+        
+        /*-------------------------------------------------*\
+        | Check if this input is the buttons                |
+        \*-------------------------------------------------*/
+        if(strncmp(input_dev_buf, buttons_device, 1024) == 0)
+        {
+            buttons_id = event_id;
+        }
+
+        /*-------------------------------------------------*\
+        | Move on to the next event                         |
+        \*-------------------------------------------------*/
+        event_id++;
+    }
+
+    if((touchscreen_id == -1) || (buttons_id == -1))
+    {
+        printf("Did not find matching input devices, exiting.\r\n");
+        exit(1);
+    }
+
+    /*-----------------------------------------------------*\
+    | Open the touchscreen device                           |
+    \*-----------------------------------------------------*/
+    char touchscreen_dev_path[1024];
+
+    snprintf(touchscreen_dev_path, 1024, "/dev/input/event%d", touchscreen_id);
+
+    touchscreen_fd = open(touchscreen_dev_path, O_RDONLY|O_NONBLOCK);
+
+    /*-----------------------------------------------------*\
+    | Open the buttons device                               |
+    \*-----------------------------------------------------*/
+    char buttons_dev_path[1024];
+
+    snprintf(buttons_dev_path, 1024, "/dev/input/event%d", buttons_id);
+
+    buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
+}
+
 /*---------------------------------------------------------*\
 | main                                                      |
 |                                                           |
@@ -311,12 +389,9 @@ void *monitor_rotation(void *vargp)
 int main(int argc, char* argv[])
 {
     /*-----------------------------------------------------*\
-    | Ensure argument count is correct                      |
+    | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
-    if(argc != 3)
-    {
-        return 0;
-    }
+    scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc");
 
     /*-----------------------------------------------------*\
     | Query accelerometer orientation to initialize rotation|
@@ -341,24 +416,6 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open the touchscreen device and grab exclusive access |
     \*-----------------------------------------------------*/
-    char touchscreen_dev_path[1024];
-
-    strcpy(touchscreen_dev_path, "/dev/input/event");
-    strcat(touchscreen_dev_path, argv[1]);
-
-    touchscreen_fd = open(touchscreen_dev_path, O_RDONLY|O_NONBLOCK);
-
-    strcpy(touchscreen_dev_path, "/sys/class/input/event");
-    strcat(touchscreen_dev_path, argv[1]);
-    strcat(touchscreen_dev_path, "/device/name");
-
-    int touchscreen_name_fd = open(touchscreen_dev_path, O_RDONLY|O_NONBLOCK);
-
-    memset(touchscreen_dev_path, 0, 1024);
-    read(touchscreen_name_fd, touchscreen_dev_path, 1024);
-
-    printf("Touchscreen Device: %s", touchscreen_dev_path);
-
     ioctl(touchscreen_fd, EVIOCGRAB, 1);
 
     int max_x[6];
@@ -372,24 +429,6 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open the buttons device and grab exclusive access     |
     \*-----------------------------------------------------*/
-    char buttons_dev_path[1024];
-
-    strcpy(buttons_dev_path, "/dev/input/event");
-    strcat(buttons_dev_path, argv[2]);
-
-    buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
-
-    strcpy(buttons_dev_path, "/sys/class/input/event");
-    strcat(buttons_dev_path, argv[2]);
-    strcat(buttons_dev_path, "/device/name");
-
-    int buttons_name_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
-
-    memset(buttons_dev_path, 0, 1024);
-    read(buttons_name_fd, buttons_dev_path, 1024);
-
-    printf("Buttons Device: %s", buttons_dev_path);
-
     ioctl(buttons_fd, EVIOCGRAB, 1);
 
     /*-----------------------------------------------------*\
