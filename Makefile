@@ -3,7 +3,7 @@ INC=-I/usr/include/dbus-1.0 -I/usr/include/glib-2.0 -I/usr/lib/dbus-1.0/include 
 default:			TouchpadEmulator
 
 TouchpadEmulator:	TouchpadEmulator.c
-					gcc -Wall $(INC) -c TouchpadEmulator.c -ldbus-1 -ldbus-glib-1 -lpthread -o TouchpadEmulator
+					gcc -Wall $(INC) TouchpadEmulator.c -ldbus-1 -ldbus-glib-1 -lpthread -o TouchpadEmulator
 
 clean:
 					git clean -dfx
