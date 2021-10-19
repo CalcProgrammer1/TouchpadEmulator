@@ -12,7 +12,7 @@ Dependencies:
 
 Compiling:
 
-* `sh compile.sh`
+* `make`
 
 Input Events:
 
@@ -26,10 +26,11 @@ Running:
 
 Installing:
 
-* After installing, you can open from the app list and type the sudo password in the prompt
-    * Copy TouchpadEmulator and LaunchTouchpadEmulator.sh to /usr/bin
-    * Copy TouchpadEmulator.desktop to /usr/share/applications
-    * Copy TouchpadEmulator.png to /usr/share/icons
+* `sudo make install`
+
+Uninstalling:
+
+* `sudo make uninstall`
 
 Controls:
 

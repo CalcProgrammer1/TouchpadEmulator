@@ -156,7 +156,6 @@ char* query_accelerometer_orientation()
     DBusError           err;
     DBusMessage*        msg;
     DBusPendingCall*    pending;
-    int                 ret;
     char*               stat;
 
     // initialiset the errors
