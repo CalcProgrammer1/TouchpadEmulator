@@ -253,7 +253,6 @@ int main(int argc, char* argv[])
 
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, monitor_rotation, NULL);
-    pthread_join(thread_id, NULL);
 
 	int fd = 0;
 
