@@ -1,4 +1,4 @@
-INC=-I/usr/include/dbus-1.0 -I/usr/include/glib-2.0 -I/usr/lib/dbus-1.0/include -I/usr/lib/glib-2.0/include -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
+INC=-I/usr/include/dbus-1.0 -I/usr/include/glib-2.0 -I/usr/lib/dbus-1.0/include -I/usr/lib/glib-2.0/include -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/lib/aarch64-linux-gnu/dbus-1.0/include -I/usr/lib/aarch64-linux-gnu/glib-2.0/include
 
 default:			TouchpadEmulator
 
