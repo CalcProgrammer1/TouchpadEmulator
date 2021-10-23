@@ -36,6 +36,16 @@
 #define EVENT_CODE_Y    ABS_Y
 
 /*---------------------------------------------------------*\
+| Button Events                                             |
+\*---------------------------------------------------------*/
+enum
+{
+    BUTTON_EVENT_ENABLE_TOUCHPAD,
+    BUTTON_EVENT_DISABLE_TOUCHPAD,
+    BUTTON_EVENT_CLOSE
+};
+
+/*---------------------------------------------------------*\
 | Global Variables                                          |
 \*---------------------------------------------------------*/
 int     rotation            = 0;
@@ -45,6 +55,10 @@ int     buttons_fd          = 0;
 int     touchscreen_fd      = 0;
 int     virtual_mouse_fd    = 0;
 
+int     close_flag          = 0;
+int     touchpad_enable     = 1;
+int     keyboard_enable     = 1;
+    
 /*---------------------------------------------------------*\
 | emit                                                      |
 |                                                           |
@@ -379,6 +393,45 @@ void scan_and_open_devices(char* touchscreen_device, char* buttons_device)
     buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
 }
 
+void process_button_event(int event)
+{
+    switch(event)
+    {
+        case BUTTON_EVENT_ENABLE_TOUCHPAD:
+            if(!touchpad_enable)
+            {
+                ioctl(touchscreen_fd, EVIOCGRAB, 1);
+                touchpad_enable = 1;
+                open_uinput(&virtual_mouse_fd);
+
+                system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+                keyboard_enable = 0;
+            }
+            break;
+
+        case BUTTON_EVENT_DISABLE_TOUCHPAD:
+            if(keyboard_enable)
+            {
+                system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+                keyboard_enable = 0;
+            }
+            else
+            {
+                system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+                keyboard_enable = 1;
+            }
+
+            ioctl(touchscreen_fd, EVIOCGRAB, 0);
+            touchpad_enable = 0;
+            close_uinput(&virtual_mouse_fd);
+            break;
+
+        case BUTTON_EVENT_CLOSE:
+            close_flag = 1;
+            break;
+    }
+}
+
 /*---------------------------------------------------------*\
 | main                                                      |
 |                                                           |
@@ -457,9 +510,9 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Initialize flag variables                             |
     \*-----------------------------------------------------*/
-    int close_flag          = 0;
-    int touchpad_enable     = 1;
-    int keyboard_enable     = 1;
+    close_flag              = 0;
+    touchpad_enable         = 1;
+    keyboard_enable         = 1;
     
     int en_key_val          = 0;
     int dis_key_val         = 0;
@@ -725,40 +778,16 @@ int main(int argc, char* argv[])
 
                     if(ret_time.tv_sec > 1)
                     {
-                        close_flag = 1;
+                    	process_button_event(BUTTON_EVENT_CLOSE);
                     }
                 }
                 if(en_key_val)
                 {
-                    const char* orientation2 = query_accelerometer_orientation();
-                    rotation = rotation_from_accelerometer_orientation(orientation2);
-
-                    if(!touchpad_enable)
-                    {
-                        ioctl(touchscreen_fd, EVIOCGRAB, 1);
-                        touchpad_enable = 1;
-                        open_uinput(&virtual_mouse_fd);
-
-                        system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
-                        keyboard_enable = 0;
-                    }
+                    process_button_event(BUTTON_EVENT_ENABLE_TOUCHPAD);
                 }
                 else if(dis_key_val)
                 {
-                    if(keyboard_enable)
-                    {
-                        system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
-                        keyboard_enable = 0;
-                    }
-                    else
-                    {
-                        system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
-                        keyboard_enable = 1;
-                    }
-
-                    ioctl(touchscreen_fd, EVIOCGRAB, 0);
-                    touchpad_enable = 0;
-                    close_uinput(&virtual_mouse_fd);
+                    process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD);
                 }
             }
         }
