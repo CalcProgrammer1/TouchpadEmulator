@@ -1,9 +1,7 @@
-INC=-I/usr/include/dbus-1.0 -I/usr/include/glib-2.0 -I/usr/lib/dbus-1.0/include -I/usr/lib/glib-2.0/include -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/lib/aarch64-linux-gnu/dbus-1.0/include -I/usr/lib/aarch64-linux-gnu/glib-2.0/include
-
 default:			TouchpadEmulator
 
 TouchpadEmulator:	TouchpadEmulator.c
-					gcc -Wall $(INC) TouchpadEmulator.c -ldbus-1 -ldbus-glib-1 -lpthread -o TouchpadEmulator
+					gcc -Wall $(shell pkg-config --cflags dbus-1 dbus-glib-1) TouchpadEmulator.c -ldbus-1 -ldbus-glib-1 -lpthread -o TouchpadEmulator
 
 clean:
 					git clean -dfx
