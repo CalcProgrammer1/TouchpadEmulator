@@ -40,9 +40,12 @@
 \*---------------------------------------------------------*/
 enum
 {
+    BUTTON_EVENT_DO_NOTHING,
     BUTTON_EVENT_ENABLE_TOUCHPAD,
     BUTTON_EVENT_DISABLE_TOUCHPAD,
-    BUTTON_EVENT_CLOSE
+    BUTTON_EVENT_CLOSE,
+    BUTTON_EVENT_EMIT_VOLUMEUP,
+    BUTTON_EVENT_EMIT_VOLUMEDOWN
 };
 
 /*---------------------------------------------------------*\
@@ -53,6 +56,7 @@ char    query_buf[64];
 
 int     buttons_fd          = 0;
 int     touchscreen_fd      = 0;
+int     virtual_buttons_fd  = 0;
 int     virtual_mouse_fd    = 0;
 
 int     close_flag          = 0;
@@ -132,6 +136,50 @@ void open_uinput(int* fd)
     /*-----------------------------------------------------*\
     | Create the virtual mouse.  The cursor should appear   |
     | on screen after this call.                            |
+    \*-----------------------------------------------------*/
+    ioctl(*fd, UI_DEV_CREATE);
+}
+
+
+void open_virtual_buttons(int* fd)
+{
+    /*-----------------------------------------------------*\
+    | If virtual buttons is already opened, return          |
+    \*-----------------------------------------------------*/
+    if(*fd != 0)
+    {
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Open the uinput device                                |
+    \*-----------------------------------------------------*/
+    *fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+
+    /*-----------------------------------------------------*\
+    | Virtual buttons provides volume up and down keys      |
+    \*-----------------------------------------------------*/
+    ioctl(*fd, UI_SET_EVBIT,  EV_KEY);
+    ioctl(*fd, UI_SET_KEYBIT, KEY_VOLUMEUP);
+    ioctl(*fd, UI_SET_KEYBIT, KEY_VOLUMEDOWN);
+
+    /*-----------------------------------------------------*\
+    | Set up virtual buttons device.  Use fake USB ID and   |
+    |name it "Touchpad Emulator Buttons"                    |
+    \*-----------------------------------------------------*/
+    struct uinput_setup usetup;
+
+    memset(&usetup, 0, sizeof(usetup));
+
+    usetup.id.bustype = BUS_USB;
+    usetup.id.vendor  = 0x1234;
+    usetup.id.product = 0x5678;
+    strcpy(usetup.name, "Touchpad Emulator Buttons");
+
+    ioctl(*fd, UI_DEV_SETUP, &usetup);
+
+    /*-----------------------------------------------------*\
+    | Create the virtual buttons                            |
     \*-----------------------------------------------------*/
     ioctl(*fd, UI_DEV_CREATE);
 }
@@ -410,17 +458,20 @@ void process_button_event(int event)
             break;
 
         case BUTTON_EVENT_DISABLE_TOUCHPAD:
-            if(keyboard_enable)
+            if(!touchpad_enable)
             {
-                system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
-                keyboard_enable = 0;
+                if(keyboard_enable)
+                {
+                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+                    keyboard_enable = 0;
+                }
+                else
+                {
+                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+                    keyboard_enable = 1;
+                }
             }
-            else
-            {
-                system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
-                keyboard_enable = 1;
-            }
-
+            
             ioctl(touchscreen_fd, EVIOCGRAB, 0);
             touchpad_enable = 0;
             close_uinput(&virtual_mouse_fd);
@@ -428,6 +479,18 @@ void process_button_event(int event)
 
         case BUTTON_EVENT_CLOSE:
             close_flag = 1;
+            break;
+        
+        case BUTTON_EVENT_EMIT_VOLUMEUP:
+            emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEUP, 1);
+            emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,   0);
+            emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEUP, 0);
+            break;
+            
+        case BUTTON_EVENT_EMIT_VOLUMEDOWN:
+            emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEDOWN, 1);
+            emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,   0);
+            emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEDOWN, 0);
             break;
     }
 }
@@ -462,7 +525,8 @@ int main(int argc, char* argv[])
     \*-----------------------------------------------------*/
 
     open_uinput(&virtual_mouse_fd);
-
+    open_virtual_buttons(&virtual_buttons_fd);
+    
     sleep(1);
 
     /*-----------------------------------------------------*\
@@ -483,6 +547,13 @@ int main(int argc, char* argv[])
     \*-----------------------------------------------------*/
     ioctl(buttons_fd, EVIOCGRAB, 1);
 
+    int button_up_long_hold_event   = BUTTON_EVENT_CLOSE;
+    int button_up_short_hold_event  = BUTTON_EVENT_ENABLE_TOUCHPAD;
+    int button_up_click_event       = BUTTON_EVENT_EMIT_VOLUMEUP;
+    int button_dn_long_hold_event   = BUTTON_EVENT_CLOSE;
+    int button_dn_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD;
+    int button_dn_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
+    
     /*-----------------------------------------------------*\
     | Initialize virtual mouse pointer tracking variables   |
     \*-----------------------------------------------------*/
@@ -513,9 +584,6 @@ int main(int argc, char* argv[])
     close_flag              = 0;
     touchpad_enable         = 1;
     keyboard_enable         = 1;
-    
-    int en_key_val          = 0;
-    int dis_key_val         = 0;
     
     /*-----------------------------------------------------*\
     | Set up file descriptor polling structures             |
@@ -753,8 +821,27 @@ int main(int argc, char* argv[])
                     time_button.tv_sec = buttons_event.input_event_sec;
                     time_button.tv_usec = buttons_event.input_event_usec;
                 }
-                
-                en_key_val = buttons_event.value;
+                else
+                {
+                    struct timeval cur_time;
+                    cur_time.tv_sec = buttons_event.input_event_sec;
+                    cur_time.tv_usec = buttons_event.input_event_usec;
+                    struct timeval ret_time;
+                    timersub(&cur_time, &time_button, &ret_time);
+
+                    if(ret_time.tv_sec > 4)
+                    {
+                        process_button_event(button_up_long_hold_event);
+                    }
+                    else if(ret_time.tv_sec > 0)
+                    {
+                    	process_button_event(button_up_short_hold_event);
+                    }
+                    else
+                    {
+                        process_button_event(button_up_click_event);
+                    }
+                }
             }
             if(buttons_event.type == EV_KEY && buttons_event.code == KEY_VOLUMEDOWN)
             {
@@ -763,12 +850,7 @@ int main(int argc, char* argv[])
                     time_button.tv_sec = buttons_event.input_event_sec;
                     time_button.tv_usec = buttons_event.input_event_usec;
                 }
-                
-                dis_key_val = buttons_event.value;
-            }
-            if(buttons_event.type == EV_SYN && buttons_event.code == SYN_REPORT)
-            {
-                if(!en_key_val || !dis_key_val)
+                else
                 {
                     struct timeval cur_time;
                     cur_time.tv_sec = buttons_event.input_event_sec;
@@ -776,18 +858,18 @@ int main(int argc, char* argv[])
                     struct timeval ret_time;
                     timersub(&cur_time, &time_button, &ret_time);
 
-                    if(ret_time.tv_sec > 1)
+                    if(ret_time.tv_sec > 4)
                     {
-                    	process_button_event(BUTTON_EVENT_CLOSE);
+                        process_button_event(button_dn_long_hold_event);
                     }
-                }
-                if(en_key_val)
-                {
-                    process_button_event(BUTTON_EVENT_ENABLE_TOUCHPAD);
-                }
-                else if(dis_key_val)
-                {
-                    process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD);
+                    else if(ret_time.tv_sec > 0)
+                    {
+                    	process_button_event(button_dn_short_hold_event);
+                    }
+                    else
+                    {
+                        process_button_event(button_dn_click_event);
+                    }
                 }
             }
         }
