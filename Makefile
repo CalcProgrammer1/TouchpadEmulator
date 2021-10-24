@@ -7,16 +7,16 @@ clean:
 					git clean -dfx
 
 install:
-					install -d /usr/bin
-					install -m 755 TouchpadEmulator /usr/bin
-					install -m 755 LaunchTouchpadEmulator.sh /usr/bin
-					install -d /usr/share/applications
-					install -m 755 TouchpadEmulator.desktop /usr/share/applications
-					install -d /usr/share/icons
-					install -m 644 TouchpadEmulator.png /usr/share/icons
+					install -d $(DESTDIR)/usr/bin
+					install -m 755 TouchpadEmulator $(DESTDIR)/usr/bin
+					install -m 755 LaunchTouchpadEmulator.sh $(DESTDIR)/usr/bin
+					install -d $(DESTDIR)/usr/share/applications
+					install -m 755 TouchpadEmulator.desktop $(DESTDIR)/usr/share/applications
+					install -d $(DESTDIR)/usr/share/icons
+					install -m 644 TouchpadEmulator.png $(DESTDIR)/usr/share/icons
 
 uninstall:
-					rm /usr/bin/TouchpadEmulator
-					rm /usr/bin/LaunchTouchpadEmulator.sh
-					rm /usr/share/applications/TouchpadEmulator.desktop
-					rm /usr/share/icons/TouchpadEmulator.png
+					rm $(DESTDIR)/usr/bin/TouchpadEmulator
+					rm $(DESTDIR)/usr/bin/LaunchTouchpadEmulator.sh
+					rm $(DESTDIR)/usr/share/applications/TouchpadEmulator.desktop
+					rm $(DESTDIR)/usr/share/icons/TouchpadEmulator.png
