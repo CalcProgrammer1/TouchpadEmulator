@@ -506,7 +506,7 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
-    scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc");
+    scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys");
 
     /*-----------------------------------------------------*\
     | Query accelerometer orientation to initialize rotation|
