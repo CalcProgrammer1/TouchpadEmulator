@@ -603,6 +603,8 @@ int main(int argc, char* argv[])
     fds[0].events           = POLLIN;
     fds[1].events           = POLLIN;
     
+    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+
     /*-----------------------------------------------------*\
     | Main loop                                             |
     \*-----------------------------------------------------*/
