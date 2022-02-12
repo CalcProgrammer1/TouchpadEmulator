@@ -838,11 +838,12 @@ int main(int argc, char* argv[])
                     struct timeval ret_time;
                     timersub(&cur_time, &time_button, &ret_time);
 
-                    if(ret_time.tv_sec > 4)
+                    unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
+                    if(usec > 4000000)
                     {
                         process_button_event(button_up_long_hold_event);
                     }
-                    else if(ret_time.tv_sec > 0)
+                    else if(usec > 500000)
                     {
                     	process_button_event(button_up_short_hold_event);
                     }
@@ -867,11 +868,12 @@ int main(int argc, char* argv[])
                     struct timeval ret_time;
                     timersub(&cur_time, &time_button, &ret_time);
 
-                    if(ret_time.tv_sec > 4)
+                    unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
+                    if(usec > 4000000)
                     {
                         process_button_event(button_dn_long_hold_event);
                     }
-                    else if(ret_time.tv_sec > 0)
+                    else if(usec > 500000)
                     {
                     	process_button_event(button_dn_short_hold_event);
                     }
