@@ -363,7 +363,7 @@ void *monitor_rotation(void *vargp)
     }
 }
 
-void scan_and_open_devices(char* touchscreen_device, char* buttons_device)
+bool scan_and_open_devices(char* touchscreen_device, char* buttons_device)
 {
     int     event_id        = 0;
     int     buttons_id      = -1;
@@ -418,8 +418,7 @@ void scan_and_open_devices(char* touchscreen_device, char* buttons_device)
 
     if((touchscreen_id == -1) || (buttons_id == -1))
     {
-        printf("Did not find matching input devices, exiting.\r\n");
-        exit(1);
+        return false;
     }
 
     /*-----------------------------------------------------*\
@@ -439,6 +438,8 @@ void scan_and_open_devices(char* touchscreen_device, char* buttons_device)
     snprintf(buttons_dev_path, 1024, "/dev/input/event%d", buttons_id);
 
     buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
+    
+    return true;
 }
 
 void process_button_event(int event)
@@ -506,7 +507,13 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
-    scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc");
+    if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc"))
+    {
+        if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys"))
+        {
+            exit(1);
+        }
+    }
 
     /*-----------------------------------------------------*\
     | Query accelerometer orientation to initialize rotation|
