@@ -486,12 +486,14 @@ void process_button_event(int event)
             emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEUP, 1);
             emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,   0);
             emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEUP, 0);
+            emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,   0);
             break;
             
         case BUTTON_EVENT_EMIT_VOLUMEDOWN:
             emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEDOWN, 1);
-            emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,   0);
+            emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,     0);
             emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEDOWN, 0);
+            emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,     0);
             break;
     }
 }
