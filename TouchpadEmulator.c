@@ -513,7 +513,10 @@ int main(int argc, char* argv[])
     {
         if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys"))
         {
-            exit(1);
+            if(!scan_and_open_devices("Synaptics S3706B", "Volume keys"))
+            {
+                exit(1);
+            }
         }
     }
 
