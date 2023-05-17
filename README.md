@@ -6,7 +6,7 @@ This application has mostly been tested in the Phosh environment on the PinePhon
 
 Dependencies:
 
-* Alpine/PostmarketOS - `sudo apk add build-base linux-headers`
+* Alpine/PostmarketOS - `sudo apk add build-base linux-headers dbus-glib-dev`
 
 * Debian/Mobian - `sudo apt install build-essential linux-headers`
 
