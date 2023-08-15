@@ -621,7 +621,12 @@ int main(int argc, char* argv[])
         int ret = poll(fds, 2, 5000);
         
         if(ret <= 0) continue;
-        
+
+        if(!touchpad_enable)
+        {
+            fingers = 0;
+        }
+
         /*-------------------------------------------------*\
         | Read the touchscreen event                        |
         \*-------------------------------------------------*/
