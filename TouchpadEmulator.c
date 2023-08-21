@@ -833,6 +833,7 @@ int main(int argc, char* argv[])
         
         if(ret > 0)
         {
+           // printf("event type: %d, event code: %d, event value: %d\r\n", buttons_event.type, buttons_event.code, buttons_event.value);
             if(buttons_event.type == EV_KEY && buttons_event.code == KEY_VOLUMEUP)
             {
                 if(buttons_event.value == 1)
@@ -840,7 +841,7 @@ int main(int argc, char* argv[])
                     time_button.tv_sec = buttons_event.input_event_sec;
                     time_button.tv_usec = buttons_event.input_event_usec;
                 }
-                else
+                else if(buttons_event.value == 0)
                 {
                     struct timeval cur_time;
                     cur_time.tv_sec = buttons_event.input_event_sec;
@@ -870,7 +871,7 @@ int main(int argc, char* argv[])
                     time_button.tv_sec = buttons_event.input_event_sec;
                     time_button.tv_usec = buttons_event.input_event_usec;
                 }
-                else
+                else if(buttons_event.value == 0)
                 {
                     struct timeval cur_time;
                     cur_time.tv_sec = buttons_event.input_event_sec;
