@@ -581,6 +581,7 @@ int main(int argc, char* argv[])
     
     int fingers             = 0;
     int dragging            = 0;
+    int check_for_dragging  = 0;
 
     /*-----------------------------------------------------*\
     | Initialize time tracking variables                    |
@@ -654,6 +655,10 @@ int main(int argc, char* argv[])
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
                     emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
                 }
+                else
+                {
+                    check_for_dragging = 1;
+                }
                 init_prev_x = 1;
                 init_prev_y = 1;
                 //printf("key press\r\n");
@@ -726,6 +731,8 @@ int main(int argc, char* argv[])
                         emit(virtual_mouse_fd, EV_KEY, BTN_RIGHT,  0);
                     }
                     
+                    check_for_dragging = 0;
+                    
                     init_prev_x = 1;
                     init_prev_y = 1;
                 }
@@ -745,6 +752,25 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
             {
+                struct timeval cur_time;
+                cur_time.tv_sec = touchscreen_event.input_event_sec;
+                cur_time.tv_usec = touchscreen_event.input_event_usec;
+                struct timeval ret_time;
+                timersub(&cur_time, &time_active, &ret_time);
+                unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
+                if(check_for_dragging && usec > 1000000)
+                {
+                    //printf("drag started\r\n");
+                    dragging = 1;
+                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
+                    emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
+                }
+                
+                if(!init_prev_x && touchscreen_event.value != prev_x)
+                {
+                    check_for_dragging = 0;
+                }
+                
                 if(rotation == 90 || rotation == 180)
                 {
                     touchscreen_event.value = max_x[2] - touchscreen_event.value;
@@ -796,6 +822,25 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_Y)
             {
+                struct timeval cur_time;
+                cur_time.tv_sec = touchscreen_event.input_event_sec;
+                cur_time.tv_usec = touchscreen_event.input_event_usec;
+                struct timeval ret_time;
+                timersub(&cur_time, &time_active, &ret_time);
+                unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
+                if(check_for_dragging && usec > 1000000)
+                {
+                    //printf("drag started\r\n");
+                    dragging = 1;
+                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
+                    emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
+                }
+                
+                if(!init_prev_y && touchscreen_event.value != prev_y)
+                {
+                    check_for_dragging = 0;
+                }
+                
                 if(rotation == 180 || rotation == 270)
                 {
                     touchscreen_event.value = max_y[2] - touchscreen_event.value;
