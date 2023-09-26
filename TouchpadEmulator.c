@@ -636,6 +636,9 @@ int main(int argc, char* argv[])
 
         if(ret > 0 && touchpad_enable)
         {
+            /*---------------------------------------------*\
+            | Touchscreen pressed                           |
+            \*---------------------------------------------*/
             if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1 && touchscreen_event.code == BTN_TOUCH)
             {
                 struct timeval cur_time;
@@ -655,6 +658,10 @@ int main(int argc, char* argv[])
                 init_prev_y = 1;
                 //printf("key press\r\n");
             }
+
+            /*---------------------------------------------*\
+            | Touchscreen released                          |
+            \*---------------------------------------------*/
             if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 0 && touchscreen_event.code == BTN_TOUCH)
             {
                 struct timeval cur_time;
@@ -679,6 +686,10 @@ int main(int argc, char* argv[])
                     dragging = 0;
                 }
             }
+            
+            /*---------------------------------------------*\
+            | Finger pressed                                |
+            \*---------------------------------------------*/
             if(touchscreen_event.type == EV_ABS && touchscreen_event.code == ABS_MT_TRACKING_ID && touchscreen_event.value >= 0)
             {
                 fingers++;
@@ -693,6 +704,10 @@ int main(int argc, char* argv[])
 
                 //printf("finger pressed, %d fingers on screen\r\n", fingers);
             }
+            
+            /*---------------------------------------------*\
+            | Finger released                               |
+            \*---------------------------------------------*/
             if(touchscreen_event.type == EV_ABS && touchscreen_event.code == ABS_MT_TRACKING_ID && touchscreen_event.value == -1)
             {
                 if(fingers == 2)
@@ -724,6 +739,10 @@ int main(int argc, char* argv[])
 
                 //printf("finger released, %d fingers on screen\r\n", fingers);
             }
+            
+            /*---------------------------------------------*\
+            | X-position of touch                           |
+            \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
             {
                 if(rotation == 90 || rotation == 180)
@@ -771,6 +790,10 @@ int main(int argc, char* argv[])
                 }    
 
             }
+            
+            /*---------------------------------------------*\
+            | Y-position of touch                           |
+            \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_Y)
             {
                 if(rotation == 180 || rotation == 270)
