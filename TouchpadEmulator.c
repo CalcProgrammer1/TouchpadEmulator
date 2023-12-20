@@ -55,6 +55,7 @@ int     rotation            = 0;
 char    query_buf[64];
 
 int     buttons_fd          = 0;
+int     slider_fd           = 0;
 int     touchscreen_fd      = 0;
 int     virtual_buttons_fd  = 0;
 int     virtual_mouse_fd    = 0;
@@ -363,13 +364,14 @@ void *monitor_rotation(void *vargp)
     }
 }
 
-bool scan_and_open_devices(char* touchscreen_device, char* buttons_device)
+bool scan_and_open_devices(char* touchscreen_device, char* buttons_device, char* slider_device)
 {
     int     event_id        = 0;
     int     buttons_id      = -1;
     int     touchscreen_id  = -1;
+    int     slider_id       = -1;
 
-    while((touchscreen_id == -1) || (buttons_id == -1))
+    while((touchscreen_id == -1) || ((buttons_id == -1) && (slider_id == -1)))
     {
         /*-------------------------------------------------*\
         | Create the input event name path                  |
@@ -409,6 +411,14 @@ bool scan_and_open_devices(char* touchscreen_device, char* buttons_device)
         {
             buttons_id = event_id;
         }
+        
+        /*-------------------------------------------------*\
+        | Check if this input is the slider                 |
+        \*-------------------------------------------------*/
+        if(strncmp(input_dev_buf, slider_device, strlen(slider_device)) == 0)
+        {
+            slider_id = event_id;
+        }
 
         /*-------------------------------------------------*\
         | Move on to the next event                         |
@@ -416,7 +426,7 @@ bool scan_and_open_devices(char* touchscreen_device, char* buttons_device)
         event_id++;
     }
 
-    if((touchscreen_id == -1) || (buttons_id == -1))
+    if((touchscreen_id == -1) || ((buttons_id == -1) && (slider_id == -1)))
     {
         return false;
     }
@@ -438,6 +448,15 @@ bool scan_and_open_devices(char* touchscreen_device, char* buttons_device)
     snprintf(buttons_dev_path, 1024, "/dev/input/event%d", buttons_id);
 
     buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
+    
+    /*-----------------------------------------------------*\
+    | Open the slider device                                |
+    \*-----------------------------------------------------*/
+    char slider_dev_path[1024];
+
+    snprintf(slider_dev_path, 1024, "/dev/input/event%d", slider_id);
+
+    slider_fd = open(slider_dev_path, O_RDONLY|O_NONBLOCK);
     
     return true;
 }
@@ -509,11 +528,11 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
-    if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc"))
+    if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", ""))
     {
-        if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys"))
+        if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys", ""))
         {
-            if(!scan_and_open_devices("Synaptics S3706B", "Volume keys"))
+            if(!scan_and_open_devices("Synaptics S3706B", "" /*"Volume keys"*/, "Alert slider"))
             {
                 exit(1);
             }
@@ -601,13 +620,15 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Set up file descriptor polling structures             |
     \*-----------------------------------------------------*/
-    struct pollfd fds[2];
+    struct pollfd fds[3];
     
     fds[0].fd               = touchscreen_fd;
     fds[1].fd               = buttons_fd;
+    fds[2].fd               = slider_fd;
     
     fds[0].events           = POLLIN;
     fds[1].events           = POLLIN;
+    fds[2].events           = POLLIN;
     
     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
 
@@ -619,7 +640,7 @@ int main(int argc, char* argv[])
         /*-------------------------------------------------*\
         | Poll until an input event occurs                  |
         \*-------------------------------------------------*/
-        int ret = poll(fds, 2, 5000);
+        int ret = poll(fds, 3, 5000);
         
         if(ret <= 0) continue;
 
@@ -960,6 +981,34 @@ int main(int argc, char* argv[])
                     {
                         process_button_event(button_dn_click_event);
                     }
+                }
+            }
+        }
+        
+        /*-------------------------------------------------*\
+        | Read the slider event                             |
+        \*-------------------------------------------------*/
+        struct input_event slider_event;
+
+        ret = read(slider_fd, &slider_event, sizeof(slider_event));
+        
+        if(ret > 0)
+        {
+            if((slider_event.type == EV_ABS) && (slider_event.code == 34))
+            {
+                switch(slider_event.value)
+                {
+                    case 0:
+                        process_button_event(BUTTON_EVENT_ENABLE_TOUCHPAD);
+                        break;
+                        
+                    case 1:
+                        process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD);
+                        break;
+                        
+                    case 2:
+                        process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD);
+                        break;
                 }
             }
         }
