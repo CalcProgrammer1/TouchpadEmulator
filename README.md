@@ -9,11 +9,11 @@ This application has mostly been tested in the Phosh environment on the **PinePh
 
 * Touchpad Emulator now uses input event names to automatically determine the event IDs.  The event names are currently hard-coded to work with the following devices, but I plan to move this to a config file soon.
 
-| Device               | Touchscreen Event               | Buttons Event   |
-| -------------------- | ------------------------------- | --------------- |
-| PINE64 PinePhone     | "Goodix Capacitive TouchScreen" | "1c21800.lradc" |
-| PINE64 PinePhone Pro | "Goodix Capacitive TouchScreen" | "adc-keys"      |
-| OnePlus 6T           | "Synaptics S3706B"              | "Volume keys"   |
+| Device               | Touchscreen Event               | Buttons Event   | Slider Event   |
+| -------------------- | ------------------------------- | --------------- | -------------- |
+| PINE64 PinePhone     | "Goodix Capacitive TouchScreen" | "1c21800.lradc" | N/A            |
+| PINE64 PinePhone Pro | "Goodix Capacitive TouchScreen" | "adc-keys"      | N/A            |
+| OnePlus 6T           | "Synaptics S3706B"              | "Volume keys"   | "Alert slider" |
 
 ## Installation
 
@@ -44,12 +44,18 @@ Uninstall with `sudo make uninstall`
 
 ## Controls
 
-* Volume Up enables Touchpad Mouse mode
+* TouchPad Emulator uses either the volume keys or the alert slider to switch modes.
 
-* Volume Down enables Touchscreen mode
-    * If already in Touchscreen mode, Volume Down toggles on-screen keyboard on and off
+  * Volume keys - Hold for more than 500ms to trigger mode change.  Quick tap to adjust volume.
+    * Volume Up enables Touchpad Mouse mode
+    * Volume Down enables Touchscreen mode
+      * If already in Touchscreen mode, Volume Down toggles on-screen keyboard on and off
+    * Holding either Volume button for 3 seconds closes the program
 
-* Holding either Volume button for 3 seconds closes the program
+  * Alert slider
+    * Up position: Touchpad Mouse mode
+    * Center position: Touchscreen mode, on-screen keyboard disabled
+    * Down position: Touchscreen mode, on-screen keyboard enabled
 
 * In Touchpad Mouse mode:
     * Moving one finger on touchscreen emulates mouse movement
