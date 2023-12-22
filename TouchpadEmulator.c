@@ -528,17 +528,23 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
-    if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", ""))
-    {
-        if(!scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys", ""))
-        {
-            if(!scan_and_open_devices("Synaptics S3706B", "" /*"Volume keys"*/, "Alert slider"))
-            {
-                exit(1);
-            }
-        }
-    }
+    bool opened = false;
+    
+    // PINE64 PinePhone
+    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", "");
+    
+    // PINE64 PinePhone Pro
+    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys", "");
+    
+    // OnePlus 6T
+    opened |= scan_and_open_devices("Synaptics S3706B", "" /*"Volume keys"*/, "Alert slider");
 
+    if(!opened)
+    {
+        printf("No supported set of input devices found, exiting.\r\n");
+        exit(1);
+    }
+    
     /*-----------------------------------------------------*\
     | Query accelerometer orientation to initialize rotation|
     \*-----------------------------------------------------*/
