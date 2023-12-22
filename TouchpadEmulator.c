@@ -590,7 +590,12 @@ int main(int argc, char* argv[])
     int button_dn_long_hold_event   = BUTTON_EVENT_CLOSE;
     int button_dn_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD;
     int button_dn_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
-    
+  
+    /*-----------------------------------------------------*\
+    | Open the slider device and grab exclusive access      |
+    \*-----------------------------------------------------*/
+    ioctl(slider_fd, EVIOCGRAB, 1);
+
     /*-----------------------------------------------------*\
     | Initialize virtual mouse pointer tracking variables   |
     \*-----------------------------------------------------*/
