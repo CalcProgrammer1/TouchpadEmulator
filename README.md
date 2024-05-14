@@ -26,7 +26,7 @@ Or you can build it yourself:
 #### Dependencies
 
 * Alpine/PostmarketOS - `sudo apk add build-base linux-headers dbus-glib-dev`
-* Debian/Mobian - `sudo apt install build-essential linux-headers`
+* Debian/Mobian - `sudo apt install build-essential linux-headers-arm64 libdbus-glib-1-dev pkexec`
 
 #### Compile & Install
 
@@ -34,6 +34,8 @@ Or you can build it yourself:
 make
 sudo make install
 ```
+
+On Debian/Mobian you can build a .deb package using `dpkg-buildpackage -b`
 
 Uninstall with `sudo make uninstall`
 
