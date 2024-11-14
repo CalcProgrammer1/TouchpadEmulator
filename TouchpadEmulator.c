@@ -27,6 +27,8 @@
 #include <poll.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <signal.h>
+#include <time.h>
 
 /*---------------------------------------------------------*\
 | Event Codes                                               |
@@ -63,7 +65,10 @@ int     virtual_mouse_fd    = 0;
 int     close_flag          = 0;
 int     touchpad_enable     = 1;
 int     keyboard_enable     = 1;
-    
+
+int     dragging            = 0;
+int     check_for_dragging  = 0;
+
 /*---------------------------------------------------------*\
 | emit                                                      |
 |                                                           |
@@ -517,6 +522,16 @@ void process_button_event(int event)
     }
 }
 
+void drag_timeout(union sigval val)
+{
+    if(check_for_dragging)
+    {
+        dragging = 1;
+        emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
+        emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
+    }
+}
+
 /*---------------------------------------------------------*\
 | main                                                      |
 |                                                           |
@@ -560,7 +575,6 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open the virtual mouse                                |
     \*-----------------------------------------------------*/
-
     open_uinput(&virtual_mouse_fd);
     open_virtual_buttons(&virtual_buttons_fd);
     
@@ -610,8 +624,6 @@ int main(int argc, char* argv[])
     int init_prev_wheel_y   = 0;
     
     int fingers             = 0;
-    int dragging            = 0;
-    int check_for_dragging  = 0;
 
     /*-----------------------------------------------------*\
     | Initialize time tracking variables                    |
@@ -674,26 +686,60 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1 && touchscreen_event.code == BTN_TOUCH)
             {
+                /*-----------------------------------------*\
+                | Record the activated time                 |
+                \*-----------------------------------------*/
                 struct timeval cur_time;
                 cur_time.tv_sec = touchscreen_event.input_event_sec;
                 cur_time.tv_usec = touchscreen_event.input_event_usec;
                 time_active = cur_time;
+
+                /*-----------------------------------------*\
+                | If there has been less than 150000 usec   |
+                | since the last tap, activate dragging     |
+                \*-----------------------------------------*/
                 struct timeval ret_time;
                 timersub(&cur_time, &time_release, &ret_time);
+
                 if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
                 {
-                    //printf("drag started\r\n");
                     dragging = 1;
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
                     emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
                 }
+
+                /*-----------------------------------------*\
+                | Otherwise, start a 1 second timer.  If no |
+                | movement has occurred when the timer      |
+                | expires, activate dragging                |
+                \*-----------------------------------------*/
                 else
                 {
+                    timer_t timer;
+                    struct sigevent ev;
+                    ev.sigev_notify = SIGEV_THREAD;
+                    ev.sigev_signo = 0;
+                    ev.sigev_value.sival_ptr = NULL;
+                    ev.sigev_notify_function = &drag_timeout;
+                    ev.sigev_notify_attributes = 0;
+
+                    timer_create(CLOCK_MONOTONIC, &ev, &timer);
+
+                    struct itimerspec itime;
+                    itime.it_value.tv_sec = 1;
+                    itime.it_value.tv_nsec = 0;
+                    itime.it_interval.tv_sec = 0;
+                    itime.it_interval.tv_nsec = 0;
+
+                    timer_settime(timer, 0, &itime, NULL);
                     check_for_dragging = 1;
                 }
+
+                /*-----------------------------------------*\
+                | Set the initialize previous x and y flags |
+                \*-----------------------------------------*/
                 init_prev_x = 1;
                 init_prev_y = 1;
-                //printf("key press\r\n");
             }
 
             /*---------------------------------------------*\
@@ -701,27 +747,43 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 0 && touchscreen_event.code == BTN_TOUCH)
             {
+                /*-----------------------------------------*\
+                | Record the released time                  |
+                \*-----------------------------------------*/
                 struct timeval cur_time;
                 cur_time.tv_sec = touchscreen_event.input_event_sec;
                 cur_time.tv_usec = touchscreen_event.input_event_usec;
                 time_release = cur_time;
-                //printf("key release\r\n");
+                
+                /*-----------------------------------------*\
+                | If there has been less than 150000 usec   |
+                | since touch was activated, produce click  |
+                \*-----------------------------------------*/
                 struct timeval ret_time;
                 timersub(&cur_time, &time_active, &ret_time);
+
                 if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
                 {
-                    //printf("click\r\n");
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
                     emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   0);
                 }
 
+                /*-----------------------------------------*\
+                | If dragging is active, release button and |
+                | stop dragging                             |
+                \*-----------------------------------------*/
                 if(dragging)
                 {
-                    //printf("drag stopped\r\n");
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT, 0);
                     dragging = 0;
                 }
+
+                /*-----------------------------------------*\
+                | If touch has been released, cancel hold   |
+                | to drag check                             |
+                \*-----------------------------------------*/
+                check_for_dragging = 0;
             }
             
             /*---------------------------------------------*\
@@ -729,8 +791,25 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EV_ABS && touchscreen_event.code == ABS_MT_TRACKING_ID && touchscreen_event.value >= 0)
             {
+                /*-----------------------------------------*\
+                | Increment finger count                    |
+                \*-----------------------------------------*/
                 fingers++;
 
+                /*-----------------------------------------*\
+                | If more than one finger touched since     |
+                | touch activated, cancel hold to drag check|
+                \*-----------------------------------------*/
+                if(fingers > 1)
+                {
+                    check_for_dragging = 0;
+                }
+
+                /*-----------------------------------------*\
+                | If there are two fingers active, record   |
+                | two finger active time and set previous   |
+                | wheel x and y initialization flags        |
+                \*-----------------------------------------*/
                 if(fingers == 2)
                 {
                     two_finger_time_active.tv_sec = touchscreen_event.input_event_sec;
@@ -738,8 +817,6 @@ int main(int argc, char* argv[])
                     init_prev_wheel_x = 1;
                     init_prev_wheel_y = 1;
                 }
-
-                //printf("finger pressed, %d fingers on screen\r\n", fingers);
             }
             
             /*---------------------------------------------*\
@@ -749,34 +826,55 @@ int main(int argc, char* argv[])
             {
                 if(fingers == 2)
                 {
+                    /*-------------------------------------*\
+                    | Read the two finger released time     |
+                    \*-------------------------------------*/
                     struct timeval cur_time;
                     cur_time.tv_sec = touchscreen_event.input_event_sec;
                     cur_time.tv_usec = touchscreen_event.input_event_usec;
+
+                    /*-------------------------------------*\
+                    | If there has been less than 150000    |
+                    | usec since two fingers were activated,|
+                    | produce right click                   |
+                    \*-------------------------------------*/
                     struct timeval ret_time;
                     timersub(&cur_time, &two_finger_time_active, &ret_time);
 
                     if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
                     {
-                        //printf("right click\r\n");
                         emit(virtual_mouse_fd, EV_KEY, BTN_RIGHT,  1);
                         emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
                         emit(virtual_mouse_fd, EV_KEY, BTN_RIGHT,  0);
                     }
                     
-                    check_for_dragging = 0;
-                    
+                    /*-------------------------------------*\
+                    | Set the initialize previous x and y   |
+                    | flags                                 |
+                    \*-------------------------------------*/
                     init_prev_x = 1;
                     init_prev_y = 1;
                 }
 
+                /*-----------------------------------------*\
+                | If number of fingers has changed since    |
+                | touch activated, cancel hold to drag check|
+                \*-----------------------------------------*/
+                check_for_dragging = 0;
+
+                /*-----------------------------------------*\
+                | Decrement finger count                    |
+                \*-----------------------------------------*/
                 fingers--;
 
+                /*-----------------------------------------*\
+                | Sanity check, fingers on screen cannot be |
+                | less than zero                            |
+                \*-----------------------------------------*/
                 if(fingers < 0)
                 {
                     fingers = 0;
                 }
-
-                //printf("finger released, %d fingers on screen\r\n", fingers);
             }
             
             /*---------------------------------------------*\
@@ -784,30 +882,28 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
             {
-                struct timeval cur_time;
-                cur_time.tv_sec = touchscreen_event.input_event_sec;
-                cur_time.tv_usec = touchscreen_event.input_event_usec;
-                struct timeval ret_time;
-                timersub(&cur_time, &time_active, &ret_time);
-                unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
-                if(check_for_dragging && usec > 1000000)
-                {
-                    //printf("drag started\r\n");
-                    dragging = 1;
-                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
-                    emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
-                }
-                
+                /*-----------------------------------------*\
+                | If X position has changed since touch     |
+                | activated, cancel hold to drag check      |
+                \*-----------------------------------------*/
                 if(!init_prev_x && touchscreen_event.value != prev_x)
                 {
                     check_for_dragging = 0;
                 }
                 
+                /*-----------------------------------------*\
+                | Handle orientations where X axis is       |
+                | mirrored                                  |
+                \*-----------------------------------------*/
                 if(rotation == 90 || rotation == 180)
                 {
                     touchscreen_event.value = max_x[2] - touchscreen_event.value;
                 }
                 
+                /*-----------------------------------------*\
+                | If one finger is on the screen, move the  |
+                | mouse cursor                              |
+                \*-----------------------------------------*/
                 if(fingers == 1)
                 {
                     if(!init_prev_x)
@@ -825,6 +921,11 @@ int main(int argc, char* argv[])
                     prev_x = touchscreen_event.value;
                     init_prev_x = 0;
                 }
+
+                /*-----------------------------------------*\
+                | Otherwise, if two fingers are on the      |
+                | screen, move the scroll wheel             |
+                \*-----------------------------------------*/
                 else if(fingers == 2)
                 {
                     if(init_prev_wheel_x)
@@ -846,7 +947,6 @@ int main(int argc, char* argv[])
                         }
                     }
                 }    
-
             }
             
             /*---------------------------------------------*\
@@ -854,30 +954,28 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_Y)
             {
-                struct timeval cur_time;
-                cur_time.tv_sec = touchscreen_event.input_event_sec;
-                cur_time.tv_usec = touchscreen_event.input_event_usec;
-                struct timeval ret_time;
-                timersub(&cur_time, &time_active, &ret_time);
-                unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
-                if(check_for_dragging && usec > 1000000)
-                {
-                    //printf("drag started\r\n");
-                    dragging = 1;
-                    emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
-                    emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
-                }
-                
+                /*-----------------------------------------*\
+                | If Y position has changed since touch     |
+                | activated, cancel hold to drag check      |
+                \*-----------------------------------------*/
                 if(!init_prev_y && touchscreen_event.value != prev_y)
                 {
                     check_for_dragging = 0;
                 }
                 
+                /*-----------------------------------------*\
+                | Handle orientations where Y axis is       |
+                | mirrored                                  |
+                \*-----------------------------------------*/
                 if(rotation == 180 || rotation == 270)
                 {
                     touchscreen_event.value = max_y[2] - touchscreen_event.value;
                 }
 
+                /*-----------------------------------------*\
+                | If one finger is on the screen, move the  |
+                | mouse cursor                              |
+                \*-----------------------------------------*/
                 if(fingers == 1)
                 {
                     if(!init_prev_y)
@@ -895,6 +993,11 @@ int main(int argc, char* argv[])
                     prev_y = touchscreen_event.value;
                     init_prev_y = 0;
                 }
+
+                /*-----------------------------------------*\
+                | Otherwise, if two fingers are on the      |
+                | screen, move the scroll wheel             |
+                \*-----------------------------------------*/
                 else if(fingers == 2)
                 {
                     if(init_prev_wheel_y)
@@ -915,8 +1018,7 @@ int main(int argc, char* argv[])
                             }
                         }
                     }
-                }
-                    
+                }   
             }
             if(touchscreen_event.type == EV_SYN && touchscreen_event.code == SYN_REPORT)
             {
