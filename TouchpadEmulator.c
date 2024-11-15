@@ -33,9 +33,11 @@
 /*---------------------------------------------------------*\
 | Event Codes                                               |
 \*---------------------------------------------------------*/
-#define EVENT_TYPE      EV_ABS
-#define EVENT_CODE_X    ABS_X
-#define EVENT_CODE_Y    ABS_Y
+#define EVENT_TYPE        EV_ABS
+#define EVENT_CODE_X      ABS_X
+#define EVENT_CODE_ALT_X  53
+#define EVENT_CODE_Y      ABS_Y
+#define EVENT_CODE_ALT_Y  54
 
 /*---------------------------------------------------------*\
 | Button Events                                             |
@@ -56,7 +58,8 @@ enum
 int     rotation            = 0;
 char    query_buf[64];
 
-int     buttons_fd          = 0;
+int     button_0_fd         = 0;
+int     button_1_fd         = 0;
 int     slider_fd           = 0;
 int     touchscreen_fd      = 0;
 int     virtual_buttons_fd  = 0;
@@ -369,14 +372,32 @@ void *monitor_rotation(void *vargp)
     }
 }
 
-bool scan_and_open_devices(char* touchscreen_device, char* buttons_device, char* slider_device)
+bool scan_and_open_devices(char* touchscreen_device, char* button_0_device, char* button_1_device, char* slider_device)
 {
+    char*   device_name[4];
+    bool    device_required[4];
+    int     device_id[4];
     int     event_id        = 0;
-    int     buttons_id      = -1;
-    int     touchscreen_id  = -1;
-    int     slider_id       = -1;
+    
+    device_name[0] = touchscreen_device;
+    device_name[1] = button_0_device;
+    device_name[2] = button_1_device;
+    device_name[3] = slider_device;
 
-    while((touchscreen_id == -1) || ((buttons_id == -1) && (slider_id == -1)))
+    for(int i = 0; i < 4; i++)
+    {
+        device_required[i] = false;
+        device_id[i]       = -1;
+
+        if(strlen(device_name[i]) > 0)
+        {
+            device_required[i] = true;
+        }
+    }
+    
+    bool all_found = false;
+
+    while(!all_found)
     {
         /*-------------------------------------------------*\
         | Create the input event name path                  |
@@ -402,27 +423,25 @@ bool scan_and_open_devices(char* touchscreen_device, char* buttons_device, char*
         printf("Input Device %d: %s", event_id, input_dev_buf);
 
         /*-------------------------------------------------*\
-        | Check if this input is the touchscreen            |
+        | Check if this input matches any of our devices    |
         \*-------------------------------------------------*/
-        if(strncmp(input_dev_buf, touchscreen_device, strlen(touchscreen_device)) == 0)
+        for(int i = 0; i < 4; i++)
         {
-            touchscreen_id = event_id;
+            if(device_required[i] && (strncmp(input_dev_buf, device_name[i], strlen(device_name[i])) == 0))
+            {
+                printf("Opened device %s\r\n", device_name[i]);
+                device_id[i] = event_id;
+            }
         }
-        
-        /*-------------------------------------------------*\
-        | Check if this input is the buttons                |
-        \*-------------------------------------------------*/
-        if(strncmp(input_dev_buf, buttons_device, strlen(buttons_device)) == 0)
+
+        all_found = true;
+
+        for(int i = 0; i < 4; i++)
         {
-            buttons_id = event_id;
-        }
-        
-        /*-------------------------------------------------*\
-        | Check if this input is the slider                 |
-        \*-------------------------------------------------*/
-        if(strncmp(input_dev_buf, slider_device, strlen(slider_device)) == 0)
-        {
-            slider_id = event_id;
+            if(device_required[i] && device_id[i] == -1)
+            {
+                all_found = false;
+            }
         }
 
         /*-------------------------------------------------*\
@@ -431,7 +450,7 @@ bool scan_and_open_devices(char* touchscreen_device, char* buttons_device, char*
         event_id++;
     }
 
-    if((touchscreen_id == -1) || ((buttons_id == -1) && (slider_id == -1)))
+    if(!all_found)
     {
         return false;
     }
@@ -441,25 +460,34 @@ bool scan_and_open_devices(char* touchscreen_device, char* buttons_device, char*
     \*-----------------------------------------------------*/
     char touchscreen_dev_path[1024];
 
-    snprintf(touchscreen_dev_path, 1024, "/dev/input/event%d", touchscreen_id);
+    snprintf(touchscreen_dev_path, 1024, "/dev/input/event%d", device_id[0]);
 
     touchscreen_fd = open(touchscreen_dev_path, O_RDONLY|O_NONBLOCK);
 
     /*-----------------------------------------------------*\
-    | Open the buttons device                               |
+    | Open the button 0 device                              |
     \*-----------------------------------------------------*/
-    char buttons_dev_path[1024];
+    char button_0_dev_path[1024];
 
-    snprintf(buttons_dev_path, 1024, "/dev/input/event%d", buttons_id);
+    snprintf(button_0_dev_path, 1024, "/dev/input/event%d", device_id[1]);
 
-    buttons_fd = open(buttons_dev_path, O_RDONLY|O_NONBLOCK);
+    button_0_fd = open(button_0_dev_path, O_RDONLY|O_NONBLOCK);
+
+    /*-----------------------------------------------------*\
+    | Open the button 1 device                              |
+    \*-----------------------------------------------------*/
+    char button_1_dev_path[1024];
+
+    snprintf(button_1_dev_path, 1024, "/dev/input/event%d", device_id[2]);
+
+    button_1_fd = open(button_1_dev_path, O_RDONLY|O_NONBLOCK);
     
     /*-----------------------------------------------------*\
     | Open the slider device                                |
     \*-----------------------------------------------------*/
     char slider_dev_path[1024];
 
-    snprintf(slider_dev_path, 1024, "/dev/input/event%d", slider_id);
+    snprintf(slider_dev_path, 1024, "/dev/input/event%d", device_id[3]);
 
     slider_fd = open(slider_dev_path, O_RDONLY|O_NONBLOCK);
     
@@ -546,31 +574,72 @@ int main(int argc, char* argv[])
     bool opened = false;
     
     // PINE64 PinePhone
-    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", "");
+    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", "", "");
     
     // PINE64 PinePhone Pro
-    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys", "");
+    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys", "", "");
     
     // OnePlus 6T
-    opened |= scan_and_open_devices("Synaptics S3706B", "" /*"Volume keys"*/, "Alert slider");
+    opened |= scan_and_open_devices("Synaptics S3706B", "" /*"Volume keys"*/, "", "Alert slider");
+
+    // Xiaomi Pad 5 Pro
+    opened |= scan_and_open_devices("NVTCapacitiveTouchScreen", "gpio-keys", "pm8941_resin", "");
 
     if(!opened)
     {
         printf("No supported set of input devices found, exiting.\r\n");
         exit(1);
     }
-    
-    /*-----------------------------------------------------*\
-    | Query accelerometer orientation to initialize rotation|
-    \*-----------------------------------------------------*/
-    const char* orientation = query_accelerometer_orientation();
-    rotation = rotation_from_accelerometer_orientation(orientation);
 
     /*-----------------------------------------------------*\
-    | Start rotation monitor thread                         |
+    | If rotation is passed on command line, use fixed      |
+    | rotation value                                        |
+    \*-----------------------------------------------------*/    
+    bool rotation_override = false;
+
+    if(argc > 1)
+    {
+        if(strncmp(argv[1], "0", 1) == 0)
+        {
+            rotation = 0;
+            rotation_override = true;
+        }
+        else if(strncmp(argv[1], "90", 2) == 0)
+        {
+            rotation = 90;
+            rotation_override = true;
+        }
+        else if(strncmp(argv[1], "180", 3) == 0)
+        {
+            rotation = 180;
+            rotation_override = true;
+        }
+        else if(strncmp(argv[1], "270", 3) == 0)
+        {
+            rotation = 270;
+            rotation_override = true;
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Otherwise, query rotation from accelerometer and      |
+    | start rotation monitor thread                         |
     \*-----------------------------------------------------*/
-    pthread_t thread_id;
-    pthread_create(&thread_id, NULL, monitor_rotation, NULL);
+    if(!rotation_override)
+    {
+        /*-------------------------------------------------*\
+        | Query accelerometer orientation to initialize     |
+        | rotation                                          |
+        \*-------------------------------------------------*/
+        const char* orientation = query_accelerometer_orientation();
+        rotation = rotation_from_accelerometer_orientation(orientation);
+
+        /*-------------------------------------------------*\
+        | Start rotation monitor thread                     |
+        \*-------------------------------------------------*/
+        pthread_t thread_id;
+        pthread_create(&thread_id, NULL, monitor_rotation, NULL);
+    }
 
     /*-----------------------------------------------------*\
     | Open the virtual mouse                                |
@@ -596,14 +665,15 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Open the buttons device and grab exclusive access     |
     \*-----------------------------------------------------*/
-    ioctl(buttons_fd, EVIOCGRAB, 1);
+    ioctl(button_0_fd, EVIOCGRAB, 1);
+    ioctl(button_1_fd, EVIOCGRAB, 1);
 
-    int button_up_long_hold_event   = BUTTON_EVENT_CLOSE;
-    int button_up_short_hold_event  = BUTTON_EVENT_ENABLE_TOUCHPAD;
-    int button_up_click_event       = BUTTON_EVENT_EMIT_VOLUMEUP;
-    int button_dn_long_hold_event   = BUTTON_EVENT_CLOSE;
-    int button_dn_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD;
-    int button_dn_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
+    int button_0_long_hold_event   = BUTTON_EVENT_CLOSE;
+    int button_0_short_hold_event  = BUTTON_EVENT_ENABLE_TOUCHPAD;
+    int button_0_click_event       = BUTTON_EVENT_EMIT_VOLUMEUP;
+    int button_1_long_hold_event   = BUTTON_EVENT_CLOSE;
+    int button_1_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD;
+    int button_1_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
   
     /*-----------------------------------------------------*\
     | Open the slider device and grab exclusive access      |
@@ -623,6 +693,7 @@ int main(int argc, char* argv[])
     int init_prev_wheel_x   = 0;
     int init_prev_wheel_y   = 0;
     
+    int touch_active        = 0;
     int fingers             = 0;
 
     /*-----------------------------------------------------*\
@@ -643,16 +714,18 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Set up file descriptor polling structures             |
     \*-----------------------------------------------------*/
-    struct pollfd fds[3];
+    struct pollfd fds[4];
     
     fds[0].fd               = touchscreen_fd;
-    fds[1].fd               = buttons_fd;
-    fds[2].fd               = slider_fd;
+    fds[1].fd               = button_0_fd;
+    fds[2].fd               = button_1_fd;
+    fds[3].fd               = slider_fd;
     
     fds[0].events           = POLLIN;
     fds[1].events           = POLLIN;
     fds[2].events           = POLLIN;
-    
+    fds[3].events           = POLLIN;
+
     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
 
     /*-----------------------------------------------------*\
@@ -663,7 +736,7 @@ int main(int argc, char* argv[])
         /*-------------------------------------------------*\
         | Poll until an input event occurs                  |
         \*-------------------------------------------------*/
-        int ret = poll(fds, 3, 5000);
+        int ret = poll(fds, 4, 5000);
         
         if(ret <= 0) continue;
 
@@ -686,6 +759,11 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 1 && touchscreen_event.code == BTN_TOUCH)
             {
+                /*-----------------------------------------*\
+                | Set touch active flag                     |
+                \*-----------------------------------------*/
+                touch_active = 1;
+
                 /*-----------------------------------------*\
                 | Record the activated time                 |
                 \*-----------------------------------------*/
@@ -747,6 +825,11 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EV_KEY && touchscreen_event.value == 0 && touchscreen_event.code == BTN_TOUCH)
             {
+                /*-----------------------------------------*\
+                | Clear touch active flag                   |
+                \*-----------------------------------------*/
+                touch_active = 0;
+
                 /*-----------------------------------------*\
                 | Record the released time                  |
                 \*-----------------------------------------*/
@@ -880,7 +963,7 @@ int main(int argc, char* argv[])
             /*---------------------------------------------*\
             | X-position of touch                           |
             \*---------------------------------------------*/
-            if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_X)
+            if(touchscreen_event.type == EVENT_TYPE && (touchscreen_event.code == EVENT_CODE_X || touchscreen_event.code == EVENT_CODE_ALT_X))
             {
                 /*-----------------------------------------*\
                 | If X position has changed since touch     |
@@ -900,49 +983,52 @@ int main(int argc, char* argv[])
                     touchscreen_event.value = max_x[2] - touchscreen_event.value;
                 }
                 
-                /*-----------------------------------------*\
-                | If one finger is on the screen, move the  |
-                | mouse cursor                              |
-                \*-----------------------------------------*/
-                if(fingers == 1)
+                if(touch_active)
                 {
-                    if(!init_prev_x)
+                    /*-------------------------------------*\
+                    | If one finger is on the screen, move  |
+                    | the mouse cursor                      |
+                    \*-------------------------------------*/
+                    if(fingers == 1)
                     {
-                        if(rotation == 0 || rotation == 180)
+                        if(!init_prev_x)
                         {
-                            emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
-                        }
-                        else if(rotation == 90 || rotation == 270)
-                        {
-                            emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
-                        }
-                    }
-                        
-                    prev_x = touchscreen_event.value;
-                    init_prev_x = 0;
-                }
-
-                /*-----------------------------------------*\
-                | Otherwise, if two fingers are on the      |
-                | screen, move the scroll wheel             |
-                \*-----------------------------------------*/
-                else if(fingers == 2)
-                {
-                    if(init_prev_wheel_x)
-                    {
-                        prev_wheel_x = touchscreen_event.value;
-                        init_prev_wheel_x = 0;
-                    }
-                    else
-                    {
-                        if(rotation == 90 || rotation == 270)
-                        {
-                            int accumulator_wheel_x = touchscreen_event.value;
-                            
-                            if(abs(accumulator_wheel_x - prev_wheel_x) > 15)
+                            if(rotation == 0 || rotation == 180)
                             {
-                                emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_x - prev_wheel_x) / 10);
-                                prev_wheel_x = accumulator_wheel_x;
+                                emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
+                            }
+                            else if(rotation == 90 || rotation == 270)
+                            {
+                                emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
+                            }
+                        }
+                            
+                        prev_x = touchscreen_event.value;
+                        init_prev_x = 0;
+                    }
+
+                    /*-------------------------------------*\
+                    | Otherwise, if two fingers are on the  |
+                    | screen, move the scroll wheel         |
+                    \*-------------------------------------*/
+                    else if(fingers == 2)
+                    {
+                        if(init_prev_wheel_x)
+                        {
+                            prev_wheel_x = touchscreen_event.value;
+                            init_prev_wheel_x = 0;
+                        }
+                        else
+                        {
+                            if(rotation == 90 || rotation == 270)
+                            {
+                                int accumulator_wheel_x = touchscreen_event.value;
+                                
+                                if(abs(accumulator_wheel_x - prev_wheel_x) > 15)
+                                {
+                                    emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_x - prev_wheel_x) / 10);
+                                    prev_wheel_x = accumulator_wheel_x;
+                                }
                             }
                         }
                     }
@@ -952,7 +1038,7 @@ int main(int argc, char* argv[])
             /*---------------------------------------------*\
             | Y-position of touch                           |
             \*---------------------------------------------*/
-            if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == EVENT_CODE_Y)
+            if(touchscreen_event.type == EVENT_TYPE && (touchscreen_event.code == EVENT_CODE_Y || touchscreen_event.code == EVENT_CODE_ALT_Y))
             {
                 /*-----------------------------------------*\
                 | If Y position has changed since touch     |
@@ -972,49 +1058,52 @@ int main(int argc, char* argv[])
                     touchscreen_event.value = max_y[2] - touchscreen_event.value;
                 }
 
-                /*-----------------------------------------*\
-                | If one finger is on the screen, move the  |
-                | mouse cursor                              |
-                \*-----------------------------------------*/
-                if(fingers == 1)
+                if(touch_active)
                 {
-                    if(!init_prev_y)
+                    /*-------------------------------------*\
+                    | If one finger is on the screen, move  |
+                    | the mouse cursor                      |
+                    \*-------------------------------------*/
+                    if(fingers == 1)
                     {
-                        if(rotation == 0 || rotation == 180)
+                        if(!init_prev_y)
                         {
-                            emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
-                        }
-                        else if(rotation == 90 || rotation == 270)
-                        {
-                            emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
-                        }
-                    }
-    
-                    prev_y = touchscreen_event.value;
-                    init_prev_y = 0;
-                }
-
-                /*-----------------------------------------*\
-                | Otherwise, if two fingers are on the      |
-                | screen, move the scroll wheel             |
-                \*-----------------------------------------*/
-                else if(fingers == 2)
-                {
-                    if(init_prev_wheel_y)
-                    {
-                        prev_wheel_y = touchscreen_event.value;
-                        init_prev_wheel_y = 0;
-                    }
-                    else
-                    {
-                        if(rotation == 0 || rotation == 180)
-                        {
-                            int accumulator_wheel_y = touchscreen_event.value;
-                            
-                            if(abs(accumulator_wheel_y - prev_wheel_y) > 15)
+                            if(rotation == 0 || rotation == 180)
                             {
-                                emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_y - prev_wheel_y) / 10);
-                                prev_wheel_y = accumulator_wheel_y;
+                                emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
+                            }
+                            else if(rotation == 90 || rotation == 270)
+                            {
+                                emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
+                            }
+                        }
+        
+                        prev_y = touchscreen_event.value;
+                        init_prev_y = 0;
+                    }
+
+                    /*-------------------------------------*\
+                    | Otherwise, if two fingers are on the  |
+                    | screen, move the scroll wheel         |
+                    \*-------------------------------------*/
+                    else if(fingers == 2)
+                    {
+                        if(init_prev_wheel_y)
+                        {
+                            prev_wheel_y = touchscreen_event.value;
+                            init_prev_wheel_y = 0;
+                        }
+                        else
+                        {
+                            if(rotation == 0 || rotation == 180)
+                            {
+                                int accumulator_wheel_y = touchscreen_event.value;
+                                
+                                if(abs(accumulator_wheel_y - prev_wheel_y) > 15)
+                                {
+                                    emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_y - prev_wheel_y) / 10);
+                                    prev_wheel_y = accumulator_wheel_y;
+                                }
                             }
                         }
                     }
@@ -1025,17 +1114,24 @@ int main(int argc, char* argv[])
                 emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
             }
         }
-        
+
         /*-------------------------------------------------*\
         | Read the buttons event                            |
         \*-------------------------------------------------*/
         struct input_event buttons_event;
 
-        ret = read(buttons_fd, &buttons_event, sizeof(buttons_event));
+        ret = read(button_0_fd, &buttons_event, sizeof(buttons_event));
         
+        if(ret <= 0)
+        {
+            ret = read(button_1_fd, &buttons_event, sizeof(buttons_event));
+        }
+
         if(ret > 0)
         {
-           // printf("event type: %d, event code: %d, event value: %d\r\n", buttons_event.type, buttons_event.code, buttons_event.value);
+            /*---------------------------------------------*\
+            | Handle volume up key events                   |
+            \*---------------------------------------------*/
             if(buttons_event.type == EV_KEY && buttons_event.code == KEY_VOLUMEUP)
             {
                 if(buttons_event.value == 1)
@@ -1054,18 +1150,22 @@ int main(int argc, char* argv[])
                     unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
                     if(usec > 4000000)
                     {
-                        process_button_event(button_up_long_hold_event);
+                        process_button_event(button_0_long_hold_event);
                     }
                     else if(usec > 500000)
                     {
-                    	process_button_event(button_up_short_hold_event);
+                    	process_button_event(button_0_short_hold_event);
                     }
                     else
                     {
-                        process_button_event(button_up_click_event);
+                        process_button_event(button_0_click_event);
                     }
                 }
             }
+
+            /*---------------------------------------------*\
+            | Handle volume down key events                 |
+            \*---------------------------------------------*/
             if(buttons_event.type == EV_KEY && buttons_event.code == KEY_VOLUMEDOWN)
             {
                 if(buttons_event.value == 1)
@@ -1084,20 +1184,20 @@ int main(int argc, char* argv[])
                     unsigned int usec = (ret_time.tv_sec * 1000000) + ret_time.tv_usec;
                     if(usec > 4000000)
                     {
-                        process_button_event(button_dn_long_hold_event);
+                        process_button_event(button_1_long_hold_event);
                     }
                     else if(usec > 500000)
                     {
-                    	process_button_event(button_dn_short_hold_event);
+                    	process_button_event(button_1_short_hold_event);
                     }
                     else
                     {
-                        process_button_event(button_dn_click_event);
+                        process_button_event(button_1_click_event);
                     }
                 }
             }
         }
-        
+
         /*-------------------------------------------------*\
         | Read the slider event                             |
         \*-------------------------------------------------*/
@@ -1107,6 +1207,9 @@ int main(int argc, char* argv[])
         
         if(ret > 0)
         {
+            /*---------------------------------------------*\
+            | Handle slider events                          |
+            \*---------------------------------------------*/
             if((slider_event.type == EV_ABS) && (slider_event.code == 34))
             {
                 switch(slider_event.value)
