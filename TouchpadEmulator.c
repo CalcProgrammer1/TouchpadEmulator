@@ -585,6 +585,12 @@ int main(int argc, char* argv[])
     // Xiaomi Pad 5 Pro
     opened |= scan_and_open_devices("NVTCapacitiveTouchScreen", "gpio-keys", "pm8941_resin", "");
 
+    // Google Pixel 3a
+    opened |= scan_and_open_devices("Synaptics S3706B", "gpio-keys", "pm8941_resin", "");
+
+    // Xiaomi Poco F1
+    opened |= scan_and_open_devices("nvt-ts", "gpio-keys", "pm8941_resin", "");
+
     if(!opened)
     {
         printf("No supported set of input devices found, exiting.\r\n");
