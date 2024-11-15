@@ -591,6 +591,9 @@ int main(int argc, char* argv[])
     // Xiaomi Poco F1
     opened |= scan_and_open_devices("nvt-ts", "gpio-keys", "pm8941_resin", "");
 
+    // LG Google Nexus 5
+    opened |= scan_and_open_devices("Synaptics PLG218", "gpio-keys", "", "");
+
     if(!opened)
     {
         printf("No supported set of input devices found, exiting.\r\n");
