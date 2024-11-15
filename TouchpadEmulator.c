@@ -35,9 +35,9 @@
 \*---------------------------------------------------------*/
 #define EVENT_TYPE        EV_ABS
 #define EVENT_CODE_X      ABS_X
-#define EVENT_CODE_ALT_X  53
+#define EVENT_CODE_ALT_X  ABS_MT_POSITION_X
 #define EVENT_CODE_Y      ABS_Y
-#define EVENT_CODE_ALT_Y  54
+#define EVENT_CODE_ALT_Y  ABS_MT_POSITION_Y
 
 /*---------------------------------------------------------*\
 | Button Events                                             |
@@ -705,6 +705,8 @@ int main(int argc, char* argv[])
     int touch_active        = 0;
     int fingers             = 0;
 
+    int active_mt_slot      = 0;
+
     /*-----------------------------------------------------*\
     | Initialize time tracking variables                    |
     \*-----------------------------------------------------*/
@@ -974,74 +976,77 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && (touchscreen_event.code == EVENT_CODE_X || touchscreen_event.code == EVENT_CODE_ALT_X))
             {
-                /*-----------------------------------------*\
-                | If X position has changed since touch     |
-                | activated, cancel hold to drag check      |
-                \*-----------------------------------------*/
-                if(!init_prev_x && touchscreen_event.value != prev_x)
-                {
-                    check_for_dragging = 0;
-                }
-                
-                /*-----------------------------------------*\
-                | Handle orientations where X axis is       |
-                | mirrored                                  |
-                \*-----------------------------------------*/
-                if(rotation == 90 || rotation == 180)
-                {
-                    touchscreen_event.value = max_x[2] - touchscreen_event.value;
-                }
-                
-                if(touch_active)
+                if(!(active_mt_slot > 0 && touchscreen_event.code == EVENT_CODE_ALT_X))
                 {
                     /*-------------------------------------*\
-                    | If one finger is on the screen, move  |
-                    | the mouse cursor                      |
+                    | If X position has changed since touch |
+                    | activated, cancel hold to drag check  |
                     \*-------------------------------------*/
-                    if(fingers == 1)
+                    if(!init_prev_x && touchscreen_event.value != prev_x)
                     {
-                        if(!init_prev_x)
-                        {
-                            if(rotation == 0 || rotation == 180)
-                            {
-                                emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
-                            }
-                            else if(rotation == 90 || rotation == 270)
-                            {
-                                emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
-                            }
-                        }
-                            
-                        prev_x = touchscreen_event.value;
-                        init_prev_x = 0;
+                        check_for_dragging = 0;
                     }
-
+                    
                     /*-------------------------------------*\
-                    | Otherwise, if two fingers are on the  |
-                    | screen, move the scroll wheel         |
+                    | Handle orientations where X axis is   |
+                    | mirrored                              |
                     \*-------------------------------------*/
-                    else if(fingers == 2)
+                    if(rotation == 90 || rotation == 180)
                     {
-                        if(init_prev_wheel_x)
+                        touchscreen_event.value = max_x[2] - touchscreen_event.value;
+                    }
+                    
+                    if(touch_active)
+                    {
+                        /*---------------------------------*\
+                        | If one finger is on the screen,   |
+                        | move the mouse cursor             |
+                        \*---------------------------------*/
+                        if(fingers == 1)
                         {
-                            prev_wheel_x = touchscreen_event.value;
-                            init_prev_wheel_x = 0;
-                        }
-                        else
-                        {
-                            if(rotation == 90 || rotation == 270)
+                            if(!init_prev_x)
                             {
-                                int accumulator_wheel_x = touchscreen_event.value;
-                                
-                                if(abs(accumulator_wheel_x - prev_wheel_x) > 15)
+                                if(rotation == 0 || rotation == 180)
                                 {
-                                    emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_x - prev_wheel_x) / 10);
-                                    prev_wheel_x = accumulator_wheel_x;
+                                    emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_x);
+                                }
+                                else if(rotation == 90 || rotation == 270)
+                                {
+                                    emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_x);
+                                }
+                            }
+                                
+                            prev_x = touchscreen_event.value;
+                            init_prev_x = 0;
+                        }
+
+                        /*---------------------------------*\
+                        | Otherwise, if two fingers are on  |
+                        | the screen, move the scroll wheel |
+                        \*---------------------------------*/
+                        else if(fingers == 2)
+                        {
+                            if(init_prev_wheel_x)
+                            {
+                                prev_wheel_x = touchscreen_event.value;
+                                init_prev_wheel_x = 0;
+                            }
+                            else
+                            {
+                                if(rotation == 90 || rotation == 270)
+                                {
+                                    int accumulator_wheel_x = touchscreen_event.value;
+                                    
+                                    if(abs(accumulator_wheel_x - prev_wheel_x) > 15)
+                                    {
+                                        emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_x - prev_wheel_x) / 10);
+                                        prev_wheel_x = accumulator_wheel_x;
+                                    }
                                 }
                             }
                         }
-                    }
-                }    
+                    }    
+                }
             }
             
             /*---------------------------------------------*\
@@ -1049,78 +1054,93 @@ int main(int argc, char* argv[])
             \*---------------------------------------------*/
             if(touchscreen_event.type == EVENT_TYPE && (touchscreen_event.code == EVENT_CODE_Y || touchscreen_event.code == EVENT_CODE_ALT_Y))
             {
-                /*-----------------------------------------*\
-                | If Y position has changed since touch     |
-                | activated, cancel hold to drag check      |
-                \*-----------------------------------------*/
-                if(!init_prev_y && touchscreen_event.value != prev_y)
-                {
-                    check_for_dragging = 0;
-                }
-                
-                /*-----------------------------------------*\
-                | Handle orientations where Y axis is       |
-                | mirrored                                  |
-                \*-----------------------------------------*/
-                if(rotation == 180 || rotation == 270)
-                {
-                    touchscreen_event.value = max_y[2] - touchscreen_event.value;
-                }
-
-                if(touch_active)
+                if(!(active_mt_slot > 0 && touchscreen_event.code == EVENT_CODE_ALT_Y))
                 {
                     /*-------------------------------------*\
-                    | If one finger is on the screen, move  |
-                    | the mouse cursor                      |
+                    | If Y position has changed since touch |
+                    | activated, cancel hold to drag check  |
                     \*-------------------------------------*/
-                    if(fingers == 1)
+                    if(!init_prev_y && touchscreen_event.value != prev_y)
                     {
-                        if(!init_prev_y)
-                        {
-                            if(rotation == 0 || rotation == 180)
-                            {
-                                emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
-                            }
-                            else if(rotation == 90 || rotation == 270)
-                            {
-                                emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
-                            }
-                        }
-        
-                        prev_y = touchscreen_event.value;
-                        init_prev_y = 0;
+                        check_for_dragging = 0;
+                    }
+                    
+                    /*-------------------------------------*\
+                    | Handle orientations where Y axis is   |
+                    | mirrored                              |
+                    \*-------------------------------------*/
+                    if(rotation == 180 || rotation == 270)
+                    {
+                        touchscreen_event.value = max_y[2] - touchscreen_event.value;
                     }
 
-                    /*-------------------------------------*\
-                    | Otherwise, if two fingers are on the  |
-                    | screen, move the scroll wheel         |
-                    \*-------------------------------------*/
-                    else if(fingers == 2)
+                    if(touch_active)
                     {
-                        if(init_prev_wheel_y)
+                        /*---------------------------------*\
+                        | If one finger is on the screen,   |
+                        | move the mouse cursor             |
+                        \*---------------------------------*/
+                        if(fingers == 1)
                         {
-                            prev_wheel_y = touchscreen_event.value;
-                            init_prev_wheel_y = 0;
-                        }
-                        else
-                        {
-                            if(rotation == 0 || rotation == 180)
+                            if(!init_prev_y)
                             {
-                                int accumulator_wheel_y = touchscreen_event.value;
-                                
-                                if(abs(accumulator_wheel_y - prev_wheel_y) > 15)
+                                if(rotation == 0 || rotation == 180)
                                 {
-                                    emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_y - prev_wheel_y) / 10);
-                                    prev_wheel_y = accumulator_wheel_y;
+                                    emit(virtual_mouse_fd, EV_REL, REL_Y, touchscreen_event.value - prev_y);
+                                }
+                                else if(rotation == 90 || rotation == 270)
+                                {
+                                    emit(virtual_mouse_fd, EV_REL, REL_X, touchscreen_event.value - prev_y);
+                                }
+                            }
+            
+                            prev_y = touchscreen_event.value;
+                            init_prev_y = 0;
+                        }
+
+                        /*---------------------------------*\
+                        | Otherwise, if two fingers are on  |
+                        | the screen, move the scroll wheel |
+                        \*---------------------------------*/
+                        else if(fingers == 2)
+                        {
+                            if(init_prev_wheel_y)
+                            {
+                                prev_wheel_y = touchscreen_event.value;
+                                init_prev_wheel_y = 0;
+                            }
+                            else
+                            {
+                                if(rotation == 0 || rotation == 180)
+                                {
+                                    int accumulator_wheel_y = touchscreen_event.value;
+                                    
+                                    if(abs(accumulator_wheel_y - prev_wheel_y) > 15)
+                                    {
+                                        emit(virtual_mouse_fd, EV_REL, REL_WHEEL, (accumulator_wheel_y - prev_wheel_y) / 10);
+                                        prev_wheel_y = accumulator_wheel_y;
+                                    }
                                 }
                             }
                         }
                     }
-                }   
+                }
             }
+
+            /*---------------------------------------------*\
+            | Sync event                                    |
+            \*---------------------------------------------*/
             if(touchscreen_event.type == EV_SYN && touchscreen_event.code == SYN_REPORT)
             {
                 emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
+            }
+
+            /*---------------------------------------------*\
+            | Slot event                                    |
+            \*---------------------------------------------*/
+            if(touchscreen_event.type == EVENT_TYPE && touchscreen_event.code == ABS_MT_SLOT)
+            {
+                active_mt_slot = touchscreen_event.value;
             }
         }
 
