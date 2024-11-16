@@ -33,11 +33,20 @@
 /*---------------------------------------------------------*\
 | Event Codes                                               |
 \*---------------------------------------------------------*/
-#define EVENT_TYPE        EV_ABS
-#define EVENT_CODE_X      ABS_X
-#define EVENT_CODE_ALT_X  ABS_MT_POSITION_X
-#define EVENT_CODE_Y      ABS_Y
-#define EVENT_CODE_ALT_Y  ABS_MT_POSITION_Y
+#define EVENT_TYPE              EV_ABS
+#define EVENT_CODE_X            ABS_X
+#define EVENT_CODE_ALT_X        ABS_MT_POSITION_X
+#define EVENT_CODE_Y            ABS_Y
+#define EVENT_CODE_ALT_Y        ABS_MT_POSITION_Y
+
+/*---------------------------------------------------------*\
+| Macros (adapted from evtest.c)                            |
+\*---------------------------------------------------------*/
+#define NBITS(x)                ((((x) - 1) / __BITS_PER_LONG) + 1)
+#define OFF(x)                  ((x) % __BITS_PER_LONG)
+#define BIT(x)                  (1UL << OFF(x))
+#define LONG(x)                 ((x) / __BITS_PER_LONG)
+#define test_bit(bit, array)    ((array[LONG(bit)] >> OFF(bit)) & 1)
 
 /*---------------------------------------------------------*\
 | Button Events                                             |
@@ -372,6 +381,154 @@ void *monitor_rotation(void *vargp)
     }
 }
 
+/*---------------------------------------------------------*\
+| scan_and_open_auto                                        |
+|                                                           |
+| Scan for and open devices based on capabilities           |
+\*---------------------------------------------------------*/
+
+bool scan_and_open_auto()
+{
+    int     event_id            = 0;
+    bool    button_0_found      = false;
+    bool    button_1_found      = false;
+    bool    touchscreen_found   = false;
+
+    /*-----------------------------------------------------*\
+    | Default all file descriptors to -1 (invalid)          |
+    \*-----------------------------------------------------*/
+    touchscreen_fd  = -1;
+    button_0_fd     = -1;
+    button_1_fd     = -1;
+    slider_fd       = -1;
+
+    while(1)
+    {
+        char input_dev_buf[1024];
+
+        /*-------------------------------------------------*\
+        | Create the input event path                       |
+        \*-------------------------------------------------*/
+        snprintf(input_dev_buf, 1024, "/dev/input/event%d", event_id);
+
+        /*-------------------------------------------------*\
+        | Open the input event path                         |
+        \*-------------------------------------------------*/
+        int input_fd = open(input_dev_buf, O_RDONLY|O_NONBLOCK);
+
+        if(input_fd < 0)
+        {
+            break;
+        }
+
+        /*-------------------------------------------------*\
+        | Print device name                                 |
+        \*-------------------------------------------------*/
+        ioctl(input_fd, EVIOCGNAME(sizeof(input_dev_buf)), input_dev_buf);
+
+        printf("Input Device %d: %s\r\n", event_id, input_dev_buf);
+
+        /*-------------------------------------------------*\
+        | Get list of capabilities                          |
+        \*-------------------------------------------------*/
+        unsigned long capabilities[EV_MAX][NBITS(KEY_MAX)];
+
+        ioctl(input_fd, EVIOCGBIT(0, EV_MAX), capabilities[0]);
+
+        for(unsigned int type = 0; type < EV_MAX; type++)
+        {
+            if(test_bit(type, capabilities[0]) && type != EV_REP)
+            {
+                if(type == EV_SYN)
+                {
+                    continue;
+                }
+
+                ioctl(input_fd, EVIOCGBIT(type, KEY_MAX), capabilities[type]);
+            }
+        }
+
+        /*-------------------------------------------------*\
+        | Check if this device is Volume Up                 |
+        \*-------------------------------------------------*/
+        if(!button_0_found
+        && test_bit(EV_SYN,             capabilities[0])
+        && test_bit(EV_KEY,             capabilities[0])
+        && test_bit(KEY_VOLUMEUP,       capabilities[EV_KEY]))
+        {
+            printf(" Device is Volume Up Key\r\n");
+            button_0_fd         = input_fd;
+            button_0_found      = true;
+        }
+
+        /*-------------------------------------------------*\
+        | Check if this device is Volume Down               |
+        \*-------------------------------------------------*/
+        else if(!button_1_found
+        && test_bit(EV_SYN,             capabilities[0])
+        && test_bit(EV_KEY,             capabilities[0])
+        && test_bit(KEY_VOLUMEDOWN,     capabilities[EV_KEY]))
+        {
+            printf(" Device is Volume Down Key\r\n");
+            button_1_fd         = input_fd;
+            button_1_found      = true;
+        }
+
+        /*-------------------------------------------------*\
+        | Check if this device is Touchscreen               |
+        \*-------------------------------------------------*/
+        else if(!touchscreen_found
+        && test_bit(EV_SYN,             capabilities[0])
+        && test_bit(EV_KEY,             capabilities[0])
+        && test_bit(BTN_TOUCH,          capabilities[EV_KEY])
+        && test_bit(EV_ABS,             capabilities[0])
+        && test_bit(ABS_MT_SLOT,        capabilities[EV_ABS])
+        && ((test_bit(ABS_X,             capabilities[EV_ABS])
+          && test_bit(ABS_Y,             capabilities[EV_ABS]))
+         || (test_bit(ABS_MT_POSITION_X,  capabilities[EV_ABS])
+          && test_bit(ABS_MT_POSITION_Y,  capabilities[EV_ABS]))))
+        {
+            printf(" Device is Touchscreen\r\n");
+            touchscreen_fd      = input_fd;
+            touchscreen_found   = true;
+        }
+
+        /*-------------------------------------------------*\
+        | Otherwise, close the device                       |
+        \*-------------------------------------------------*/
+        else
+        {
+            close(input_fd);
+        }
+
+        /*-------------------------------------------------*\
+        | Move on to the next event                         |
+        \*-------------------------------------------------*/
+        event_id++;
+    }
+
+    /*-----------------------------------------------------*\
+    | Return true if touchscreen, volume up, and volume     |
+    | down were all found                                   |
+    \*-----------------------------------------------------*/
+    if(touchscreen_found && button_0_found && button_1_found)
+    {
+        return true;
+    }
+    
+    close(button_0_fd);
+    close(button_1_fd);
+    close(touchscreen_fd);
+
+    return false;
+}
+
+/*---------------------------------------------------------*\
+| scan_and_open_devices                                     |
+|                                                           |
+| Scan for and open devices matching the given names        |
+\*---------------------------------------------------------*/
+
 bool scan_and_open_devices(char* touchscreen_device, char* button_0_device, char* button_1_device, char* slider_device)
 {
     char*   device_name[4];
@@ -572,7 +729,7 @@ int main(int argc, char* argv[])
     | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
     bool opened = false;
-    
+
     // PINE64 PinePhone
     opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", "", "");
     
@@ -593,6 +750,16 @@ int main(int argc, char* argv[])
 
     // LG Google Nexus 5
     opened |= scan_and_open_devices("Synaptics PLG218", "gpio-keys", "", "");
+
+    /*-----------------------------------------------------*\
+    | If probing known device event names failed, try to    |
+    | detect touchscreen and buttons devices automatically  |
+    | based on input capabilities                           |
+    \*-----------------------------------------------------*/
+    if(!opened)
+    {
+        opened |= scan_and_open_auto();
+    }
 
     if(!opened)
     {
