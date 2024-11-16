@@ -464,7 +464,7 @@ bool scan_and_open_auto()
         /*-------------------------------------------------*\
         | Check if this device is Volume Down               |
         \*-------------------------------------------------*/
-        else if(!button_1_found
+        if(!button_1_found
         && test_bit(EV_SYN,             capabilities[0])
         && test_bit(EV_KEY,             capabilities[0])
         && test_bit(KEY_VOLUMEDOWN,     capabilities[EV_KEY]))
@@ -477,7 +477,7 @@ bool scan_and_open_auto()
         /*-------------------------------------------------*\
         | Check if this device is Touchscreen               |
         \*-------------------------------------------------*/
-        else if(!touchscreen_found
+        if(!touchscreen_found
         && test_bit(EV_SYN,             capabilities[0])
         && test_bit(EV_KEY,             capabilities[0])
         && test_bit(BTN_TOUCH,          capabilities[EV_KEY])
@@ -494,9 +494,11 @@ bool scan_and_open_auto()
         }
 
         /*-------------------------------------------------*\
-        | Otherwise, close the device                       |
+        | If this device was not used, close the device     |
         \*-------------------------------------------------*/
-        else
+        if(touchscreen_fd != input_fd
+        && button_0_fd    != input_fd
+        && button_1_fd    != input_fd)
         {
             close(input_fd);
         }
@@ -505,6 +507,15 @@ bool scan_and_open_auto()
         | Move on to the next event                         |
         \*-------------------------------------------------*/
         event_id++;
+    }
+
+    /*-----------------------------------------------------*\
+    | If both volume up and down are on the same device,    |
+    | set the second button fd to invalid                   |
+    \*-----------------------------------------------------*/
+    if(button_0_fd == button_1_fd)
+    {
+        button_1_fd = -1;
     }
 
     /*-----------------------------------------------------*\
