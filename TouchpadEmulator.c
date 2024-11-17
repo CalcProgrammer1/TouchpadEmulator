@@ -980,7 +980,7 @@ int main(int argc, char* argv[])
                 | movement has occurred when the timer      |
                 | expires, activate dragging                |
                 \*-----------------------------------------*/
-                else
+                else if(fingers <= 1)
                 {
                     timer_t timer;
                     struct sigevent ev;
