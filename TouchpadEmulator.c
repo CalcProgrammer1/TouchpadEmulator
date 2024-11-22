@@ -723,6 +723,7 @@ void drag_timeout(union sigval val)
     if(check_for_dragging)
     {
         dragging = 1;
+        check_for_dragging = 0;
         emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
         emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
     }
@@ -884,6 +885,8 @@ int main(int argc, char* argv[])
     int fingers             = 0;
 
     int active_mt_slot      = 0;
+    int check_for_click     = 0;
+    int check_for_tap_drag  = 0;
 
     /*-----------------------------------------------------*\
     | Initialize time tracking variables                    |
@@ -916,6 +919,32 @@ int main(int argc, char* argv[])
     fds[3].events           = POLLIN;
 
     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+
+    /*-----------------------------------------------------*\
+    | Create a timer to handle hold-to-drag                 |
+    \*-----------------------------------------------------*/
+    timer_t timer;
+    
+    struct sigevent ev;
+    ev.sigev_notify                 = SIGEV_THREAD;
+    ev.sigev_signo                  = 0;
+    ev.sigev_value.sival_ptr        = NULL;
+    ev.sigev_notify_function        = &drag_timeout;
+    ev.sigev_notify_attributes      = 0;
+
+    timer_create(CLOCK_MONOTONIC, &ev, &timer);
+
+    struct itimerspec itime_start;
+    itime_start.it_value.tv_sec     = 1;
+    itime_start.it_value.tv_nsec    = 0;
+    itime_start.it_interval.tv_sec  = 0;
+    itime_start.it_interval.tv_nsec = 0;
+
+    struct itimerspec itime_stop;
+    itime_stop.it_value.tv_sec      = 0;
+    itime_stop.it_value.tv_nsec     = 0;
+    itime_stop.it_interval.tv_sec   = 0;
+    itime_stop.it_interval.tv_nsec  = 0;
 
     /*-----------------------------------------------------*\
     | Main loop                                             |
@@ -968,9 +997,10 @@ int main(int argc, char* argv[])
                 struct timeval ret_time;
                 timersub(&cur_time, &time_release, &ret_time);
 
-                if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
+                if(check_for_tap_drag && ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
                 {
                     dragging = 1;
+                    check_for_tap_drag = 0;
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
                     emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
                 }
@@ -982,24 +1012,8 @@ int main(int argc, char* argv[])
                 \*-----------------------------------------*/
                 else if(fingers <= 1)
                 {
-                    timer_t timer;
-                    struct sigevent ev;
-                    ev.sigev_notify = SIGEV_THREAD;
-                    ev.sigev_signo = 0;
-                    ev.sigev_value.sival_ptr = NULL;
-                    ev.sigev_notify_function = &drag_timeout;
-                    ev.sigev_notify_attributes = 0;
-
-                    timer_create(CLOCK_MONOTONIC, &ev, &timer);
-
-                    struct itimerspec itime;
-                    itime.it_value.tv_sec = 1;
-                    itime.it_value.tv_nsec = 0;
-                    itime.it_interval.tv_sec = 0;
-                    itime.it_interval.tv_nsec = 0;
-
-                    timer_settime(timer, 0, &itime, NULL);
                     check_for_dragging = 1;
+                    timer_settime(timer, 0, &itime_start, NULL);
                 }
 
                 /*-----------------------------------------*\
@@ -1007,6 +1021,9 @@ int main(int argc, char* argv[])
                 \*-----------------------------------------*/
                 init_prev_x = 1;
                 init_prev_y = 1;
+
+                check_for_click = 1;
+                check_for_tap_drag = 1;
             }
 
             /*---------------------------------------------*\
@@ -1034,8 +1051,9 @@ int main(int argc, char* argv[])
                 struct timeval ret_time;
                 timersub(&cur_time, &time_active, &ret_time);
 
-                if(ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
+                if(check_for_click == 1 && ret_time.tv_sec == 0 && ret_time.tv_usec < 150000)
                 {
+                    check_for_click = 0;
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   1);
                     emit(virtual_mouse_fd, EV_SYN, SYN_REPORT, 0);
                     emit(virtual_mouse_fd, EV_KEY, BTN_LEFT,   0);
@@ -1056,6 +1074,7 @@ int main(int argc, char* argv[])
                 | to drag check                             |
                 \*-----------------------------------------*/
                 check_for_dragging = 0;
+                timer_settime(timer, 0, &itime_stop, NULL);
             }
             
             /*---------------------------------------------*\
@@ -1074,7 +1093,11 @@ int main(int argc, char* argv[])
                 \*-----------------------------------------*/
                 if(fingers > 1)
                 {
-                    check_for_dragging = 0;
+                    check_for_dragging  = 0;
+                    timer_settime(timer, 0, &itime_stop, NULL);
+
+                    check_for_click     = 0;
+                    check_for_tap_drag  = 0;
                 }
 
                 /*-----------------------------------------*\
@@ -1133,6 +1156,13 @@ int main(int argc, char* argv[])
                 | touch activated, cancel hold to drag check|
                 \*-----------------------------------------*/
                 check_for_dragging = 0;
+                timer_settime(timer, 0, &itime_stop, NULL);
+
+                if(fingers > 1)
+                {
+                    check_for_click = 0;
+                    check_for_tap_drag = 0;
+                }
 
                 /*-----------------------------------------*\
                 | Decrement finger count                    |
@@ -1160,9 +1190,13 @@ int main(int argc, char* argv[])
                     | If X position has changed since touch |
                     | activated, cancel hold to drag check  |
                     \*-------------------------------------*/
-                    if(!init_prev_x && touchscreen_event.value != prev_x)
+                    if(touch_active && (!init_prev_x && touchscreen_event.value != prev_x))
                     {
                         check_for_dragging = 0;
+                        timer_settime(timer, 0, &itime_stop, NULL); 
+
+                        check_for_click    = 0;
+                        check_for_tap_drag = 0;
                     }
                     
                     /*-------------------------------------*\
@@ -1238,9 +1272,13 @@ int main(int argc, char* argv[])
                     | If Y position has changed since touch |
                     | activated, cancel hold to drag check  |
                     \*-------------------------------------*/
-                    if(!init_prev_y && touchscreen_event.value != prev_y)
+                    if(touch_active && (!init_prev_y && touchscreen_event.value != prev_y))
                     {
                         check_for_dragging = 0;
+                        timer_settime(timer, 0, &itime_stop, NULL); 
+
+                        check_for_click    = 0;
+                        check_for_tap_drag = 0;                 
                     }
                     
                     /*-------------------------------------*\
