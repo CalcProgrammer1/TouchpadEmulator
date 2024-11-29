@@ -58,7 +58,8 @@ enum
     BUTTON_EVENT_DISABLE_TOUCHPAD,
     BUTTON_EVENT_CLOSE,
     BUTTON_EVENT_EMIT_VOLUMEUP,
-    BUTTON_EVENT_EMIT_VOLUMEDOWN
+    BUTTON_EVENT_EMIT_VOLUMEDOWN,
+    BUTTON_EVENT_CHANGE_ORIENTATION,
 };
 
 /*---------------------------------------------------------*\
@@ -749,6 +750,15 @@ void process_button_event(int event)
             emit(virtual_buttons_fd, EV_KEY, KEY_VOLUMEDOWN, 0);
             emit(virtual_buttons_fd, EV_SYN, SYN_REPORT,     0);
             break;
+
+        case BUTTON_EVENT_CHANGE_ORIENTATION:
+            rotation += 90;
+
+            if(rotation > 270)
+            {
+                rotation = 0;
+            }
+            break;
     }
 }
 
@@ -777,11 +787,11 @@ void drag_timeout(union sigval val)
 
 int main(int argc, char* argv[])
 {
+    bool opened         = false;
+
     /*-----------------------------------------------------*\
     | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
-    bool opened = false;
-
     // PINE64 PinePhone
     opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", "", "");
     
@@ -818,6 +828,16 @@ int main(int argc, char* argv[])
         printf("No supported set of input devices found, exiting.\r\n");
         exit(1);
     }
+
+    /*-----------------------------------------------------*\
+    | Set up default button behaviors                       |
+    \*-----------------------------------------------------*/
+    int button_0_long_hold_event   = BUTTON_EVENT_CLOSE;
+    int button_0_short_hold_event  = BUTTON_EVENT_ENABLE_TOUCHPAD;
+    int button_0_click_event       = BUTTON_EVENT_EMIT_VOLUMEUP;
+    int button_1_long_hold_event   = BUTTON_EVENT_CLOSE;
+    int button_1_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD;
+    int button_1_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
 
     /*-----------------------------------------------------*\
     | If rotation is passed on command line, use fixed      |
@@ -867,13 +887,20 @@ int main(int argc, char* argv[])
             /*---------------------------------------------*\
             | Start rotation monitor thread                 |
             \*---------------------------------------------*/
+            printf("Automatic orientation detection enabled.\r\n");
             pthread_t thread_id;
             pthread_create(&thread_id, NULL, monitor_rotation, NULL);
         }
         else
         {
+            /*---------------------------------------------*\
+            | Enable manual rotation if automatic rotation  |
+            | could not be enabled                          |
+            \*---------------------------------------------*/
             printf("Orientation could not be determined from accelerometer, defaulting to 0 degrees.\r\n");
-            rotation = 0;
+            printf("Long-press Volume Up button to change orientations manually.\r\n");
+            button_0_long_hold_event = BUTTON_EVENT_CHANGE_ORIENTATION;
+            rotation                 = 0;
         }
     }
 
@@ -903,13 +930,6 @@ int main(int argc, char* argv[])
     \*-----------------------------------------------------*/
     ioctl(button_0_fd, EVIOCGRAB, 1);
     ioctl(button_1_fd, EVIOCGRAB, 1);
-
-    int button_0_long_hold_event   = BUTTON_EVENT_CLOSE;
-    int button_0_short_hold_event  = BUTTON_EVENT_ENABLE_TOUCHPAD;
-    int button_0_click_event       = BUTTON_EVENT_EMIT_VOLUMEUP;
-    int button_1_long_hold_event   = BUTTON_EVENT_CLOSE;
-    int button_1_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD;
-    int button_1_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
   
     /*-----------------------------------------------------*\
     | Open the slider device and grab exclusive access      |
@@ -966,6 +986,9 @@ int main(int argc, char* argv[])
     fds[2].events           = POLLIN;
     fds[3].events           = POLLIN;
 
+    /*-----------------------------------------------------*\
+    | Disable the on-screen keyboard                        |
+    \*-----------------------------------------------------*/
     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
 
     /*-----------------------------------------------------*\
@@ -1530,6 +1553,9 @@ int main(int argc, char* argv[])
     \*-----------------------------------------------------*/
     close_uinput(&virtual_mouse_fd);
     
+    /*-----------------------------------------------------*\
+    | Enable the on-screen keyboard                         |
+    \*-----------------------------------------------------*/
     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
 
     return 0;
