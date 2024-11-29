@@ -64,8 +64,8 @@ enum
 /*---------------------------------------------------------*\
 | Global Variables                                          |
 \*---------------------------------------------------------*/
+char    query_buf[64]       = "";
 int     rotation            = 0;
-char    query_buf[64];
 
 int     button_0_fd         = 0;
 int     button_1_fd         = 0;
@@ -346,13 +346,13 @@ char* query_accelerometer_orientation()
         if(dbus_message_iter_get_arg_type(&args_variant) == DBUS_TYPE_STRING)
         {
             dbus_message_iter_get_basic(&args_variant, &stat);
+
+            /*---------------------------------------------*\
+            | Copy reply                                    |
+            \*---------------------------------------------*/
+            strncpy(query_buf, stat, 64);
         }
     }
-
-    /*-----------------------------------------------------*\
-    | Copy reply                                            |
-    \*-----------------------------------------------------*/
-    strncpy(query_buf, stat, 64);
 
     /*-----------------------------------------------------*\
     | Free reply                                            |
@@ -383,9 +383,13 @@ int rotation_from_accelerometer_orientation(const char* orientation)
     {
         return(270);
     }
-    else //orientation == "normal"
+    else if(strncmp(orientation, "normal", 64) == 0)
     {
         return(0);
+    }
+    else
+    {
+        return(-1);
     }
 }
 
@@ -858,11 +862,19 @@ int main(int argc, char* argv[])
         const char* orientation = query_accelerometer_orientation();
         rotation = rotation_from_accelerometer_orientation(orientation);
 
-        /*-------------------------------------------------*\
-        | Start rotation monitor thread                     |
-        \*-------------------------------------------------*/
-        pthread_t thread_id;
-        pthread_create(&thread_id, NULL, monitor_rotation, NULL);
+        if(rotation >= 0)
+        {
+            /*---------------------------------------------*\
+            | Start rotation monitor thread                 |
+            \*---------------------------------------------*/
+            pthread_t thread_id;
+            pthread_create(&thread_id, NULL, monitor_rotation, NULL);
+        }
+        else
+        {
+            printf("Orientation could not be determined from accelerometer, defaulting to 0 degrees.\r\n");
+            rotation = 0;
+        }
     }
 
     /*-----------------------------------------------------*\
