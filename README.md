@@ -2,18 +2,24 @@
 
 Emulates a laptop-style touchpad device using a touchscreen. My goal with this is to provide a virtual mouse for Linux phones and tablets that functions similarly to the virtual mouse in Microsoft's Remote Desktop Android app.
 
-This application has mostly been tested in the Phosh environment on the **PinePhone** and **PinePhone Pro**. It should support all distributions using Phosh.
+This application has been tested on all of the devices in the table below using postmarketOS. It should support all distributions using Phosh or other GNOME-based environments.  Mouse functionality should work with other environments but the on-screen keyboard toggling feature may not work.
 
 
 **Input Events:**
 
-* Touchpad Emulator now uses input event names to automatically determine the event IDs.  The event names are currently hard-coded to work with the following devices, but I plan to move this to a config file soon.
+* Touchpad Emulator uses input event names to automatically determine the event IDs for the tested and verified devices in the table below:
 
-| Device               | Touchscreen Event               | Buttons Event   | Slider Event   |
-| -------------------- | ------------------------------- | --------------- | -------------- |
-| PINE64 PinePhone     | "Goodix Capacitive TouchScreen" | "1c21800.lradc" | N/A            |
-| PINE64 PinePhone Pro | "Goodix Capacitive TouchScreen" | "adc-keys"      | N/A            |
-| OnePlus 6T           | "Synaptics S3706B"              | "Volume keys"   | "Alert slider" |
+| Device               | Touchscreen Event               | Buttons Event(s)            | Slider Event   |
+| -------------------- | ------------------------------- | --------------------------- | -------------- |
+| PINE64 PinePhone     | "Goodix Capacitive TouchScreen" | "1c21800.lradc"             | N/A            |
+| PINE64 PinePhone Pro | "Goodix Capacitive TouchScreen" | "adc-keys"                  | N/A            |
+| OnePlus 6T           | "Synaptics S3706B"              | "Volume keys"               | "Alert slider" |
+| Xiaomi Pad 5 Pro     | "NVTCapacitiveTouchScreen"      | "gpio-keys", "pm8941_resin" | N/A            |
+| Google Pixel 3a      | "Synaptics S3706B"              | "gpio-keys", "pm8941_resin" | N/A            |
+| Xiaomi Poco F1       | "nvt-ts"                        | "gpio-keys", "pm8941_resin" | N/A            |
+| LG Google Nexus 5    | "Synaptics PLG218"              | "gpio-keys"                 | N/A            |
+
+*  Otherwise, if your device's input event names are not known, it will try a fallback detection scheme using input event capabilities instead.
 
 ## Installation
 
@@ -48,11 +54,16 @@ Uninstall with `sudo make uninstall`
 
 * TouchPad Emulator uses either the volume keys or the alert slider to switch modes.
 
-  * Volume keys - Hold for more than 500ms to trigger mode change.  Quick tap to adjust volume.
-    * Volume Up enables Touchpad Mouse mode
-    * Volume Down enables Touchscreen mode
-      * If already in Touchscreen mode, Volume Down toggles on-screen keyboard on and off
-    * Holding either Volume button for 3 seconds closes the program
+  * Volume keys
+    * Volume Up
+      * Quick tap (<500ms) to increase volume
+      * Short hold (500ms) to change mode to Touchpad Mouse mode
+      * Long hold (3s) to change touchscreen orientation (only enabled if automatic orientation detection failed)
+    * Volume Down
+      * Quick tap (<500ms) to decrease volume
+      * Short hold (500ms) to change mode to Touchscreen mode
+        * If already in Touchscreen mode, toggles on-screen keyboard on and off
+      * Long hold (3s) closes the program
 
   * Alert slider
     * Up position: Touchpad Mouse mode
@@ -62,6 +73,7 @@ Uninstall with `sudo make uninstall`
 * In Touchpad Mouse mode:
     * Moving one finger on touchscreen emulates mouse movement
     * Tapping one finger on touchscreen emulates mouse left click
-    * Tap-and-hold one finger on touchscreen emulates mouse left click and drag
+    * Double tap and hold one finger on touchscreen emulates mouse left click and drag
+    * Single tap and hold one finger on touchscreen without moving cursor for 1 second emulates mouse drag
     * Holding one finger and tapping a second finger on touchscreen emulates mouse right click
     * Moving two fingers on touchscreen emulates scroll wheel (vertical axis only)
