@@ -238,10 +238,14 @@ char* query_accelerometer_orientation()
     DBusPendingCall*    pending;
     char*               stat;
 
-    // initialiset the errors
+    /*-----------------------------------------------------*\
+    | Initialize the errors                                 |
+    \*-----------------------------------------------------*/
     dbus_error_init(&err);
 
-    // connect to the system bus and check for errors
+    /*-----------------------------------------------------*\
+    | Connect to the system bus and check for errors        |
+    \*-----------------------------------------------------*/
     conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
 
     if(dbus_error_is_set(&err))
@@ -254,7 +258,9 @@ char* query_accelerometer_orientation()
         exit(1);
     }
 
-    // create a new method call and check for errors
+    /*-----------------------------------------------------*\
+    | Create a new method call and check for errors         |
+    \*-----------------------------------------------------*/
     msg = dbus_message_new_method_call("net.hadess.SensorProxy",
                                        "/net/hadess/SensorProxy",
                                        "org.freedesktop.DBus.Properties",
@@ -265,7 +271,9 @@ char* query_accelerometer_orientation()
         exit(1);
     }
 
-    // append arguments
+    /*-----------------------------------------------------*\
+    | Append arguments                                      |
+    \*-----------------------------------------------------*/
     dbus_message_iter_init_append(msg, &args);
 
     char* arg1 = "net.hadess.SensorProxy";
@@ -280,7 +288,9 @@ char* query_accelerometer_orientation()
           exit(1);
     }
 
-    // send message and get a handle for a reply
+    /*-----------------------------------------------------*\
+    | Send message and get a handle for a reply             |
+    \*-----------------------------------------------------*/
     if(!dbus_connection_send_with_reply (conn, msg, &pending, -1))
     {
         exit(1);
@@ -293,13 +303,19 @@ char* query_accelerometer_orientation()
 
     dbus_connection_flush(conn);
 
-    // free message
+    /*-----------------------------------------------------*\
+    | Free message                                          |
+    \*-----------------------------------------------------*/
     dbus_message_unref(msg);
 
-    // block until we recieve a reply
+    /*-----------------------------------------------------*\
+    | Block until we recieve a reply                        |
+    \*-----------------------------------------------------*/
     dbus_pending_call_block(pending);
 
-    // get the reply message
+    /*-----------------------------------------------------*\
+    | Get the reply message                                 |
+    \*-----------------------------------------------------*/
     msg = dbus_pending_call_steal_reply(pending);
 
     if(NULL == msg)
@@ -307,10 +323,14 @@ char* query_accelerometer_orientation()
         exit(1);
     }
 
-    // free the pending message handle
+    /*-----------------------------------------------------*\
+    | Free the pending message handle                       |
+    \*-----------------------------------------------------*/
     dbus_pending_call_unref(pending);
 
-    // read the parameters
+    /*-----------------------------------------------------*\
+    | Read the parameters                                   |
+    \*-----------------------------------------------------*/
     if (!dbus_message_iter_init(msg, &args))
     {
         fprintf(stderr, "Message has no arguments!\n");
@@ -329,10 +349,14 @@ char* query_accelerometer_orientation()
         }
     }
 
-    // copy reply
+    /*-----------------------------------------------------*\
+    | Copy reply                                            |
+    \*-----------------------------------------------------*/
     strncpy(query_buf, stat, 64);
 
-    // free reply
+    /*-----------------------------------------------------*\
+    | Free reply                                            |
+    \*-----------------------------------------------------*/
     dbus_message_unref(msg);
 
     return(query_buf);
@@ -662,6 +686,12 @@ bool scan_and_open_devices(char* touchscreen_device, char* button_0_device, char
     return true;
 }
 
+/*---------------------------------------------------------*\
+| process_button_event                                      |
+|                                                           |
+| Process a button event                                    |
+\*---------------------------------------------------------*/
+
 void process_button_event(int event)
 {
     switch(event)
@@ -717,6 +747,12 @@ void process_button_event(int event)
             break;
     }
 }
+
+/*---------------------------------------------------------*\
+| drag_timeout                                              |
+|                                                           |
+| Handle the hold-to-drag timer timeout                     |
+\*---------------------------------------------------------*/
 
 void drag_timeout(union sigval val)
 {
