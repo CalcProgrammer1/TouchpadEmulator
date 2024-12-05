@@ -23,6 +23,7 @@
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>
 #include <fcntl.h>
+#include <linux/input.h>
 #include <linux/uinput.h>
 #include <poll.h>
 #include <pthread.h>
@@ -55,11 +56,13 @@ enum
 {
     BUTTON_EVENT_DO_NOTHING,
     BUTTON_EVENT_ENABLE_TOUCHPAD,
-    BUTTON_EVENT_DISABLE_TOUCHPAD,
+    BUTTON_EVENT_DISABLE_TOUCHPAD_TOGGLE_KEYBOARD,
     BUTTON_EVENT_CLOSE,
     BUTTON_EVENT_EMIT_VOLUMEUP,
     BUTTON_EVENT_EMIT_VOLUMEDOWN,
     BUTTON_EVENT_CHANGE_ORIENTATION,
+    BUTTON_EVENT_DISABLE_TOUCHPAD_ENABLE_KEYBOARD,
+    BUTTON_EVENT_DISABLE_TOUCHPAD_DISABLE_KEYBOARD,
 };
 
 /*---------------------------------------------------------*\
@@ -713,7 +716,7 @@ void process_button_event(int event)
             }
             break;
 
-        case BUTTON_EVENT_DISABLE_TOUCHPAD:
+        case BUTTON_EVENT_DISABLE_TOUCHPAD_TOGGLE_KEYBOARD:
             if(!touchpad_enable)
             {
                 if(keyboard_enable)
@@ -722,6 +725,36 @@ void process_button_event(int event)
                     keyboard_enable = 0;
                 }
                 else
+                {
+                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+                    keyboard_enable = 1;
+                }
+            }
+            
+            ioctl(touchscreen_fd, EVIOCGRAB, 0);
+            touchpad_enable = 0;
+            close_uinput(&virtual_mouse_fd);
+            break;
+
+        case BUTTON_EVENT_DISABLE_TOUCHPAD_DISABLE_KEYBOARD:
+            if(!touchpad_enable)
+            {
+                if(keyboard_enable)
+                {
+                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+                    keyboard_enable = 0;
+                }
+            }
+            
+            ioctl(touchscreen_fd, EVIOCGRAB, 0);
+            touchpad_enable = 0;
+            close_uinput(&virtual_mouse_fd);
+            break;
+
+        case BUTTON_EVENT_DISABLE_TOUCHPAD_ENABLE_KEYBOARD:
+            if(!touchpad_enable)
+            {
+                if(!keyboard_enable)
                 {
                     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
                     keyboard_enable = 1;
@@ -836,7 +869,7 @@ int main(int argc, char* argv[])
     int button_0_short_hold_event  = BUTTON_EVENT_ENABLE_TOUCHPAD;
     int button_0_click_event       = BUTTON_EVENT_EMIT_VOLUMEUP;
     int button_1_long_hold_event   = BUTTON_EVENT_CLOSE;
-    int button_1_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD;
+    int button_1_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD_TOGGLE_KEYBOARD;
     int button_1_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
 
     /*-----------------------------------------------------*\
@@ -968,7 +1001,7 @@ int main(int argc, char* argv[])
     | Initialize flag variables                             |
     \*-----------------------------------------------------*/
     close_flag              = 0;
-    touchpad_enable         = 1;
+    touchpad_enable         = 0;
     keyboard_enable         = 1;
     
     /*-----------------------------------------------------*\
@@ -985,11 +1018,6 @@ int main(int argc, char* argv[])
     fds[1].events           = POLLIN;
     fds[2].events           = POLLIN;
     fds[3].events           = POLLIN;
-
-    /*-----------------------------------------------------*\
-    | Disable the on-screen keyboard                        |
-    \*-----------------------------------------------------*/
-    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
 
     /*-----------------------------------------------------*\
     | Create a timer to handle hold-to-drag                 |
@@ -1016,6 +1044,38 @@ int main(int argc, char* argv[])
     itime_stop.it_value.tv_nsec     = 0;
     itime_stop.it_interval.tv_sec   = 0;
     itime_stop.it_interval.tv_nsec  = 0;
+
+    /*-----------------------------------------------------*\
+    | Determine initial state                               |
+    |   If slider is used, initialize based on slider       |
+    |   position, otherwise initialize to touchpad mode     |
+    \*-----------------------------------------------------*/
+    if(slider_fd >= 0)
+    {
+        struct input_absinfo absinfo;
+        ioctl(slider_fd, EVIOCGABS(34), &absinfo);
+
+        switch(absinfo.value)
+        {
+            case 0:
+                process_button_event(BUTTON_EVENT_ENABLE_TOUCHPAD);
+                break;
+                
+            case 1:
+                process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD_DISABLE_KEYBOARD);
+                break;
+                
+            case 2:
+                process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD_ENABLE_KEYBOARD);
+                break;
+        }
+    }
+    else
+    {
+        system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+        keyboard_enable = 0;
+        touchpad_enable = 1;
+    }
 
     /*-----------------------------------------------------*\
     | Main loop                                             |
@@ -1535,11 +1595,11 @@ int main(int argc, char* argv[])
                         break;
                         
                     case 1:
-                        process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD);
+                        process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD_DISABLE_KEYBOARD);
                         break;
                         
                     case 2:
-                        process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD);
+                        process_button_event(BUTTON_EVENT_DISABLE_TOUCHPAD_ENABLE_KEYBOARD);
                         break;
                 }
             }
