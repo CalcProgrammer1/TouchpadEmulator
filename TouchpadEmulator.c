@@ -34,11 +34,13 @@
 /*---------------------------------------------------------*\
 | Event Codes                                               |
 \*---------------------------------------------------------*/
+#define ABS_SLIDER              34
 #define EVENT_TYPE              EV_ABS
 #define EVENT_CODE_X            ABS_X
 #define EVENT_CODE_ALT_X        ABS_MT_POSITION_X
 #define EVENT_CODE_Y            ABS_Y
 #define EVENT_CODE_ALT_Y        ABS_MT_POSITION_Y
+#define EVENT_CODE_SLIDER       ABS_SLIDER
 
 /*---------------------------------------------------------*\
 | Macros (adapted from evtest.c)                            |
@@ -1053,7 +1055,7 @@ int main(int argc, char* argv[])
     if(slider_fd >= 0)
     {
         struct input_absinfo absinfo;
-        ioctl(slider_fd, EVIOCGABS(34), &absinfo);
+        ioctl(slider_fd, EVIOCGABS(ABS_SLIDER), &absinfo);
 
         switch(absinfo.value)
         {
@@ -1586,7 +1588,7 @@ int main(int argc, char* argv[])
             /*---------------------------------------------*\
             | Handle slider events                          |
             \*---------------------------------------------*/
-            if((slider_event.type == EV_ABS) && (slider_event.code == 34))
+            if((slider_event.type == EV_ABS) && (slider_event.code == EVENT_CODE_SLIDER))
             {
                 switch(slider_event.value)
                 {
