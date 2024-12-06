@@ -107,6 +107,30 @@ void emit(int fd, int type, int code, int val)
 }
 
 /*---------------------------------------------------------*\
+| disable_keyboard                                          |
+|                                                           |
+| Disable the on screen keyboard                            |
+\*---------------------------------------------------------*/
+
+void disable_keyboard()
+{
+    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+    keyboard_enable = 0;
+}
+
+/*---------------------------------------------------------*\
+| enable_keyboard                                           |
+|                                                           |
+| Enable the on screen keyboard                             |
+\*---------------------------------------------------------*/
+
+void enable_keyboard()
+{
+    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+    keyboard_enable = 1;
+}
+
+/*---------------------------------------------------------*\
 | open_uinput                                               |
 |                                                           |
 | Creates the virtual mouse device                          |
@@ -713,8 +737,7 @@ void process_button_event(int event)
                 touchpad_enable = 1;
                 open_uinput(&virtual_mouse_fd);
 
-                system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
-                keyboard_enable = 0;
+                disable_keyboard();
             }
             break;
 
@@ -723,13 +746,11 @@ void process_button_event(int event)
             {
                 if(keyboard_enable)
                 {
-                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
-                    keyboard_enable = 0;
+                    disable_keyboard();
                 }
                 else
                 {
-                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
-                    keyboard_enable = 1;
+                    enable_keyboard();
                 }
             }
             
@@ -741,11 +762,7 @@ void process_button_event(int event)
         case BUTTON_EVENT_DISABLE_TOUCHPAD_DISABLE_KEYBOARD:
             if(!touchpad_enable)
             {
-                if(keyboard_enable)
-                {
-                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
-                    keyboard_enable = 0;
-                }
+                disable_keyboard();
             }
             
             ioctl(touchscreen_fd, EVIOCGRAB, 0);
@@ -756,11 +773,7 @@ void process_button_event(int event)
         case BUTTON_EVENT_DISABLE_TOUCHPAD_ENABLE_KEYBOARD:
             if(!touchpad_enable)
             {
-                if(!keyboard_enable)
-                {
-                    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
-                    keyboard_enable = 1;
-                }
+                enable_keyboard();
             }
             
             ioctl(touchscreen_fd, EVIOCGRAB, 0);
@@ -1074,8 +1087,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
-        keyboard_enable = 0;
+        disable_keyboard();
         touchpad_enable = 1;
     }
 
@@ -1618,7 +1630,7 @@ int main(int argc, char* argv[])
     /*-----------------------------------------------------*\
     | Enable the on-screen keyboard                         |
     \*-----------------------------------------------------*/
-    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+    enable_keyboard();
 
     return 0;
 }
