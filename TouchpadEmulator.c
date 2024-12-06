@@ -81,8 +81,8 @@ int     virtual_buttons_fd  = 0;
 int     virtual_mouse_fd    = 0;
 
 int     close_flag          = 0;
-int     touchpad_enable     = 1;
-int     keyboard_enable     = 1;
+int     touchpad_enable     = 0;
+int     keyboard_enable     = 0;
 
 int     dragging            = 0;
 int     check_for_dragging  = 0;
@@ -249,6 +249,38 @@ void close_uinput(int* fd)
     close(*fd);
 
     *fd = 0;
+}
+
+/*---------------------------------------------------------*\
+| disable_touchpad                                          |
+|                                                           |
+| Disable the emulated touchpad                             |
+\*---------------------------------------------------------*/
+
+void disable_touchpad()
+{
+    if(touchpad_enable)
+    {
+        ioctl(touchscreen_fd, EVIOCGRAB, 0);
+        close_uinput(&virtual_mouse_fd);
+    }
+    touchpad_enable = 0;
+}
+
+/*---------------------------------------------------------*\
+| enable_touchpad                                           |
+|                                                           |
+| Enable the emulated touchpad                              |
+\*---------------------------------------------------------*/
+
+void enable_touchpad()
+{
+    if(!touchpad_enable)
+    {
+        ioctl(touchscreen_fd, EVIOCGRAB, 1);
+        open_uinput(&virtual_mouse_fd);
+    }
+    touchpad_enable = 1;
 }
 
 /*---------------------------------------------------------*\
@@ -731,14 +763,8 @@ void process_button_event(int event)
     switch(event)
     {
         case BUTTON_EVENT_ENABLE_TOUCHPAD:
-            if(!touchpad_enable)
-            {
-                ioctl(touchscreen_fd, EVIOCGRAB, 1);
-                touchpad_enable = 1;
-                open_uinput(&virtual_mouse_fd);
-
-                disable_keyboard();
-            }
+            enable_touchpad();
+            disable_keyboard();
             break;
 
         case BUTTON_EVENT_DISABLE_TOUCHPAD_TOGGLE_KEYBOARD:
@@ -754,9 +780,7 @@ void process_button_event(int event)
                 }
             }
             
-            ioctl(touchscreen_fd, EVIOCGRAB, 0);
-            touchpad_enable = 0;
-            close_uinput(&virtual_mouse_fd);
+            disable_touchpad();
             break;
 
         case BUTTON_EVENT_DISABLE_TOUCHPAD_DISABLE_KEYBOARD:
@@ -765,9 +789,7 @@ void process_button_event(int event)
                 disable_keyboard();
             }
             
-            ioctl(touchscreen_fd, EVIOCGRAB, 0);
-            touchpad_enable = 0;
-            close_uinput(&virtual_mouse_fd);
+            disable_touchpad();
             break;
 
         case BUTTON_EVENT_DISABLE_TOUCHPAD_ENABLE_KEYBOARD:
@@ -776,9 +798,7 @@ void process_button_event(int event)
                 enable_keyboard();
             }
             
-            ioctl(touchscreen_fd, EVIOCGRAB, 0);
-            touchpad_enable = 0;
-            close_uinput(&virtual_mouse_fd);
+            disable_touchpad();
             break;
 
         case BUTTON_EVENT_CLOSE:
@@ -953,25 +973,20 @@ int main(int argc, char* argv[])
     }
 
     /*-----------------------------------------------------*\
-    | Open the virtual mouse                                |
+    | Open the virtual buttons                              |
     \*-----------------------------------------------------*/
-    open_uinput(&virtual_mouse_fd);
     open_virtual_buttons(&virtual_buttons_fd);
-    
-    sleep(1);
 
     /*-----------------------------------------------------*\
-    | Open the touchscreen device and grab exclusive access |
+    | Open the touchscreen device and determine maximums    |
     \*-----------------------------------------------------*/
-    ioctl(touchscreen_fd, EVIOCGRAB, 1);
+    struct input_absinfo max_x;
+    struct input_absinfo max_y;
 
-    int max_x[6];
-    int max_y[6];
+    ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_X), &max_x);
+    ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_Y), &max_y);
 
-    ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_X), max_x);
-    ioctl(touchscreen_fd, EVIOCGABS(ABS_MT_POSITION_Y), max_y);
-
-    printf("Touchscreen Max X:%d, Max y:%d\r\n", max_x[2], max_y[2]);
+    printf("Touchscreen Max X:%d, Max y:%d\r\n", max_x.maximum, max_y.maximum);
 
     /*-----------------------------------------------------*\
     | Open the buttons device and grab exclusive access     |
@@ -1088,7 +1103,7 @@ int main(int argc, char* argv[])
     else
     {
         disable_keyboard();
-        touchpad_enable = 1;
+        enable_touchpad();
     }
 
     /*-----------------------------------------------------*\
@@ -1350,7 +1365,7 @@ int main(int argc, char* argv[])
                     \*-------------------------------------*/
                     if(rotation == 90 || rotation == 180)
                     {
-                        touchscreen_event.value = max_x[2] - touchscreen_event.value;
+                        touchscreen_event.value = max_x.maximum - touchscreen_event.value;
                     }
                     
                     if(touch_active)
@@ -1432,7 +1447,7 @@ int main(int argc, char* argv[])
                     \*-------------------------------------*/
                     if(rotation == 180 || rotation == 270)
                     {
-                        touchscreen_event.value = max_y[2] - touchscreen_event.value;
+                        touchscreen_event.value = max_y.maximum - touchscreen_event.value;
                     }
 
                     if(touch_active)
