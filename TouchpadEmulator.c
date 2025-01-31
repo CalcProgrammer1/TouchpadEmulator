@@ -502,13 +502,24 @@ void *monitor_rotation(void *vargp)
 | Scan for and open devices based on capabilities           |
 \*---------------------------------------------------------*/
 
-bool scan_and_open_auto()
+bool scan_and_open_auto(bool no_buttons)
 {
+    char    input_dev_buf[1024];
     int     event_id            = 0;
     bool    button_0_found      = false;
     bool    button_1_found      = false;
     bool    touchscreen_found   = false;
 
+    /*-----------------------------------------------------*\
+    | Set button found flags to prevent initializing        |
+    | buttons if no buttons flag is set                     |
+    \*-----------------------------------------------------*/
+    if(no_buttons)
+    {
+        button_0_found = true;
+        button_1_found = true;
+    }
+    
     /*-----------------------------------------------------*\
     | Default all file descriptors to -1 (invalid)          |
     \*-----------------------------------------------------*/
@@ -519,8 +530,6 @@ bool scan_and_open_auto()
 
     while(1)
     {
-        char input_dev_buf[1024];
-
         /*-------------------------------------------------*\
         | Create the input event path                       |
         \*-------------------------------------------------*/
@@ -535,13 +544,6 @@ bool scan_and_open_auto()
         {
             break;
         }
-
-        /*-------------------------------------------------*\
-        | Print device name                                 |
-        \*-------------------------------------------------*/
-        ioctl(input_fd, EVIOCGNAME(sizeof(input_dev_buf)), input_dev_buf);
-
-        printf("Input Device %d: %s\r\n", event_id, input_dev_buf);
 
         /*-------------------------------------------------*\
         | Get list of capabilities                          |
@@ -571,7 +573,6 @@ bool scan_and_open_auto()
         && test_bit(EV_KEY,             capabilities[0])
         && test_bit(KEY_VOLUMEUP,       capabilities[EV_KEY]))
         {
-            printf(" Device is Volume Up Key\r\n");
             button_0_fd         = input_fd;
             button_0_found      = true;
         }
@@ -584,7 +585,6 @@ bool scan_and_open_auto()
         && test_bit(EV_KEY,             capabilities[0])
         && test_bit(KEY_VOLUMEDOWN,     capabilities[EV_KEY]))
         {
-            printf(" Device is Volume Down Key\r\n");
             button_1_fd         = input_fd;
             button_1_found      = true;
         }
@@ -603,7 +603,6 @@ bool scan_and_open_auto()
          || (test_bit(ABS_MT_POSITION_X,  capabilities[EV_ABS])
           && test_bit(ABS_MT_POSITION_Y,  capabilities[EV_ABS]))))
         {
-            printf(" Device is Touchscreen\r\n");
             touchscreen_fd      = input_fd;
             touchscreen_found   = true;
         }
@@ -639,6 +638,24 @@ bool scan_and_open_auto()
     \*-----------------------------------------------------*/
     if(touchscreen_found && button_0_found && button_1_found)
     {
+        printf( "Opened device Automatic with:\r\n");
+
+        if(touchscreen_fd > 0)
+        {
+            ioctl(touchscreen_fd, EVIOCGNAME(sizeof(input_dev_buf)), input_dev_buf);
+            printf("    Touchscreen: %s\r\n", input_dev_buf);
+        }
+        if(button_0_fd > 0)
+        {
+            ioctl(button_0_fd, EVIOCGNAME(sizeof(input_dev_buf)), input_dev_buf);
+            printf("    Buttons:     %s\r\n", input_dev_buf);
+        }
+        if(button_1_fd > 0)
+        {
+            ioctl(button_1_fd, EVIOCGNAME(sizeof(input_dev_buf)), input_dev_buf);
+            printf("    Buttons:     %s\r\n", input_dev_buf);
+        }
+
         return true;
     }
     
@@ -999,7 +1016,7 @@ int main(int argc, char* argv[])
     \*-----------------------------------------------------*/
     if(!opened)
     {
-        opened |= scan_and_open_auto();
+        opened |= scan_and_open_auto(no_buttons);
     }
 
     if(!opened)
