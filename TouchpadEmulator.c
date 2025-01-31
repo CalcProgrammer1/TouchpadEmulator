@@ -938,6 +938,8 @@ int main(int argc, char* argv[])
                 printf("Invalid rotation %s\r\n", argument);
                 exit(1);
             }
+
+            arg_index++;
         }
 
         arg_index++;
