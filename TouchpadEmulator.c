@@ -52,6 +52,31 @@
 #define test_bit(bit, array)    ((array[LONG(bit)] >> OFF(bit)) & 1)
 
 /*---------------------------------------------------------*\
+| List of known devices' input event names                  |
+\*---------------------------------------------------------*/
+typedef struct
+{
+    char *  touchscreen;
+    char *  button_0;
+    char *  button_1;
+    char *  slider;
+    char *  device;
+} event_names_type;
+
+#define NUM_KNOWN_DEVICES 7
+
+static const event_names_type known_devices[NUM_KNOWN_DEVICES] =
+{
+    { "Goodix Capacitive TouchScreen",  "1c21800.lradc",    "",             "",             "PINE64 PinePhone"      },
+    { "Goodix Capacitive TouchScreen",  "adc-keys",         "",             "",             "PINE64 PinePhone Pro"  },
+    { "Synaptics S3706B",               "Volume keys",      "",             "Alert slider", "OnePlus 6T"            },
+    { "NVTCapacitiveTouchScreen",       "gpio-keys",        "pm8941_resin", "",             "Xiaomi Pad 5 Pro"      },
+    { "Synaptics S3706B",               "gpio-keys",        "pm8941_resin", "",             "Google Pixel 3a"       },
+    { "nvt-ts",                         "gpio-keys",        "pm8941_resin", "",             "Xiaomi Poco F1"        },
+    { "Synaptics PLG218",               "gpio-keys",        "",             "",             "LG Google Nexus 5"     },
+};
+
+/*---------------------------------------------------------*\
 | Button Events                                             |
 \*---------------------------------------------------------*/
 enum
@@ -677,9 +702,7 @@ bool scan_and_open_devices(char* touchscreen_device, char* button_0_device, char
         memset(input_dev_buf, 0, 1024);
         read(input_name_fd, input_dev_buf, 1024);
         close(input_name_fd);
-
-        printf("Input Device %d: %s", event_id, input_dev_buf);
-
+        
         /*-------------------------------------------------*\
         | Check if this input matches any of our devices    |
         \*-------------------------------------------------*/
@@ -687,7 +710,6 @@ bool scan_and_open_devices(char* touchscreen_device, char* button_0_device, char
         {
             if(device_required[i] && (strncmp(input_dev_buf, device_name[i], strlen(device_name[i])) == 0))
             {
-                printf("Opened device %s\r\n", device_name[i]);
                 device_id[i] = event_id;
             }
         }
@@ -855,31 +877,118 @@ void drag_timeout(union sigval val)
 
 int main(int argc, char* argv[])
 {
-    bool opened         = false;
+    bool opened             = false;
+    bool rotation_override  = false;
+    bool no_buttons         = false;
+    bool no_slider          = false;
+
+    /*-----------------------------------------------------*\
+    | Process command line arguments                        |
+    \*-----------------------------------------------------*/
+    int arg_index = 1;
+
+    while(arg_index < argc)
+    {
+        char * option   = argv[arg_index];
+        char * argument = "";
+
+        if(arg_index + 1 < argc)
+        {
+            argument    = argv[arg_index + 1];
+        }
+
+        if(strcmp(option, "--no-buttons") == 0)
+        {
+            no_buttons = true;
+        }
+
+        if(strcmp(option, "--no-slider") == 0)
+        {
+            no_slider = true;
+        }
+
+        /*-------------------------------------------------*\
+        | If rotation is passed on command line, use fixed  |
+        | rotation value                                    |
+        \*-------------------------------------------------*/
+        if(strcmp(option, "--rotation-override") == 0)
+        {
+            if(strncmp(argument, "0", 1) == 0)
+            {
+                rotation = 0;
+                rotation_override = true;
+            }
+            else if(strncmp(argument, "90", 2) == 0)
+            {
+                rotation = 90;
+                rotation_override = true;
+            }
+            else if(strncmp(argument, "180", 3) == 0)
+            {
+                rotation = 180;
+                rotation_override = true;
+            }
+            else if(strncmp(argument, "270", 3) == 0)
+            {
+                rotation = 270;
+                rotation_override = true;
+            }
+            else
+            {
+                printf("Invalid rotation %s\r\n", argument);
+                exit(1);
+            }
+        }
+
+        arg_index++;
+    }
 
     /*-----------------------------------------------------*\
     | Open touchscreen and button devices by name           |
     \*-----------------------------------------------------*/
-    // PINE64 PinePhone
-    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "1c21800.lradc", "", "");
-    
-    // PINE64 PinePhone Pro
-    opened |= scan_and_open_devices("Goodix Capacitive TouchScreen", "adc-keys", "", "");
-    
-    // OnePlus 6T
-    opened |= scan_and_open_devices("Synaptics S3706B", "" /*"Volume keys"*/, "", "Alert slider");
+    for(unsigned int device_idx = 0; device_idx < NUM_KNOWN_DEVICES; device_idx++)
+    {
+        char * touchscreen  = known_devices[device_idx].touchscreen;
+        char * button_0     = known_devices[device_idx].button_0;
+        char * button_1     = known_devices[device_idx].button_1;
+        char * slider       = known_devices[device_idx].slider;
 
-    // Xiaomi Pad 5 Pro
-    opened |= scan_and_open_devices("NVTCapacitiveTouchScreen", "gpio-keys", "pm8941_resin", "");
+        if(no_slider)
+        {
+            slider          = "";
+        }
 
-    // Google Pixel 3a
-    opened |= scan_and_open_devices("Synaptics S3706B", "gpio-keys", "pm8941_resin", "");
+        if((strlen(slider) > 0) || (no_buttons))
+        {
+            button_0        = "";
+            button_1        = "";
+        }
 
-    // Xiaomi Poco F1
-    opened |= scan_and_open_devices("nvt-ts", "gpio-keys", "pm8941_resin", "");
+        opened = scan_and_open_devices(touchscreen, button_0, button_1, slider);
+        
+        if(opened)
+        {
+            printf( "Opened device %s with:\r\n", known_devices[device_idx].device);
 
-    // LG Google Nexus 5
-    opened |= scan_and_open_devices("Synaptics PLG218", "gpio-keys", "", "");
+            if(strlen(touchscreen) > 0)
+            {
+                printf("    Touchscreen: %s\r\n", touchscreen);
+            }
+            if(strlen(button_0) > 0)
+            {
+                printf("    Buttons:     %s\r\n", button_0);
+            }
+            if(strlen(button_1) > 0)
+            {
+                printf("    Buttons:     %s\r\n", button_1);
+            }
+            if(strlen(slider) > 0)
+            {
+                printf("    Slider:      %s\r\n", slider);
+            }
+            break;
+        }
+    }
 
     /*-----------------------------------------------------*\
     | If probing known device event names failed, try to    |
@@ -906,36 +1015,6 @@ int main(int argc, char* argv[])
     int button_1_long_hold_event   = BUTTON_EVENT_CLOSE;
     int button_1_short_hold_event  = BUTTON_EVENT_DISABLE_TOUCHPAD_TOGGLE_KEYBOARD;
     int button_1_click_event       = BUTTON_EVENT_EMIT_VOLUMEDOWN;
-
-    /*-----------------------------------------------------*\
-    | If rotation is passed on command line, use fixed      |
-    | rotation value                                        |
-    \*-----------------------------------------------------*/    
-    bool rotation_override = false;
-
-    if(argc > 1)
-    {
-        if(strncmp(argv[1], "0", 1) == 0)
-        {
-            rotation = 0;
-            rotation_override = true;
-        }
-        else if(strncmp(argv[1], "90", 2) == 0)
-        {
-            rotation = 90;
-            rotation_override = true;
-        }
-        else if(strncmp(argv[1], "180", 3) == 0)
-        {
-            rotation = 180;
-            rotation_override = true;
-        }
-        else if(strncmp(argv[1], "270", 3) == 0)
-        {
-            rotation = 270;
-            rotation_override = true;
-        }
-    }
 
     /*-----------------------------------------------------*\
     | Otherwise, query rotation from accelerometer and      |
