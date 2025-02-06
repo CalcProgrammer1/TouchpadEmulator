@@ -7,13 +7,14 @@
    viewBox="0 0 64 64"
    version="1.1"
    id="svg5"
-   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
    sodipodi:docname="TouchpadEmulator.svg"
-   inkscape:export-filename="/home/adam/TouchpadEmulator.png"
+   inkscape:export-filename="TouchpadEmulator.png"
    inkscape:export-xdpi="96"
    inkscape:export-ydpi="96"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <sodipodi:namedview
@@ -27,21 +28,50 @@
      inkscape:document-units="px"
      showgrid="true"
      width="64px"
-     inkscape:zoom="9.09375"
-     inkscape:cx="87.815711"
-     inkscape:cy="13.196734"
-     inkscape:window-width="2560"
-     inkscape:window-height="1363"
+     inkscape:zoom="6"
+     inkscape:cx="40.75"
+     inkscape:cy="34"
+     inkscape:window-width="1560"
+     inkscape:window-height="644"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1">
+     inkscape:current-layer="layer1"
+     inkscape:showpageshadow="0"
+     inkscape:deskcolor="#505050">
     <inkscape:grid
        type="xygrid"
-       id="grid75" />
+       id="grid75"
+       originx="0"
+       originy="0"
+       spacingy="1"
+       spacingx="1"
+       units="px" />
   </sodipodi:namedview>
   <defs
-     id="defs2" />
+     id="defs2">
+    <linearGradient
+       id="linearGradient1"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#00c55e;stop-opacity:1;"
+         offset="0"
+         id="stop1" />
+      <stop
+         style="stop-color:#297b3a;stop-opacity:1;"
+         offset="1"
+         id="stop2" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1"
+       id="linearGradient2"
+       x1="22.100504"
+       y1="22.100498"
+       x2="41.899498"
+       y2="41.899494"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
@@ -55,7 +85,7 @@
        y="2"
        ry="5" />
     <rect
-       style="fill:#999999;stroke-width:1.01909"
+       style="fill:url(#linearGradient2);stroke-width:1.01909"
        id="rect1080"
        width="28"
        height="51"
