@@ -152,6 +152,7 @@ void disable_keyboard()
 void enable_keyboard()
 {
     system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+    system("busctl call --user sm.puri.OSK0 /sm/puri/OSK0 sm.puri.OSK0 SetVisible b true");
     keyboard_enable = 1;
 }
 
