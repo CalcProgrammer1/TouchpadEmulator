@@ -49,6 +49,21 @@ Uninstall with `sudo make uninstall`
 
 * `sh LaunchTouchpadEmulator.sh`
 
+#### Permissions
+
+If installed from source, running LaunchTouchpadEmulator.sh will prompt for your password.  If installed via the Alpine package, the neccesary devices will be available to the `input` group.
+
+You can add your user account (shown here as `user`) to the `input` group by running:
+
+* `sudo addgroup user input`
+
+After a reboot, you should no longer be prompted for password when running LaunchTouchpadEmulator.sh.
+
+#### Autostart
+
+After setting up permissions, you can enable Touchpad Emulator to automatically start when you log in.
+
+* `cp /usr/share/applications/TouchpadEmulator.desktop ~/.config/autostart`
 
 ## Controls
 

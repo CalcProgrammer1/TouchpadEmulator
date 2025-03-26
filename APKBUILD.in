@@ -38,6 +38,8 @@ build() {
 
 package() {
 	make DESTDIR="$pkgdir" install
+	install -Dm644 10-uinput.rules -t "$pkgdir"/usr/lib/udev/rules.d/
+	install -Dm644 uinput.conf -t "$pkgdir"/usr/lib/modules-load.d/
 }
 
 cleanup() {
