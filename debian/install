@@ -1,0 +1,2 @@
+10-uinput.rules usr/lib/udev/rules.d
+uinput.conf usr/lib/modules-load.d
