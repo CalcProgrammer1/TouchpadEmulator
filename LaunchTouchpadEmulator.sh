@@ -1,4 +1,19 @@
-#! /bin/sh
+#! /bin/bash
+
+if [ "$1" = "--autostart" ] ; then
+    AUTOSTART=""
+
+    AUTOSTART+="[Desktop Entry]\r\n"
+    AUTOSTART+="Type=Application\r\n"
+    AUTOSTART+="Name=Touchpad Emulator Autostart\r\n"
+    AUTOSTART+="Exec=sh -c \"sleep 5; LaunchTouchpadEmulator.sh --start_disabled\"\r\n"
+    AUTOSTART+="Icon=TouchpadEmulator\r\n"
+
+    echo -e $AUTOSTART > ~/.config/autostart/TouchpadEmulator-Autostart.desktop
+
+    echo "Autostart enabled, TouchpadEmulator will start automatically on login."
+    exit
+fi
 
 # Kill all existing instances of TouchpadEmulator before starting a new one
 killall TouchpadEmulator
