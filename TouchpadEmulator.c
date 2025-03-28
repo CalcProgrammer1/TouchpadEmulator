@@ -1212,7 +1212,10 @@ int main(int argc, char* argv[])
                 break;
         }
     }
-    else
+    /*-----------------------------------------------------*\
+    | If not using slider or buttons, default to touchpad   |
+    \*-----------------------------------------------------*/
+    else if(no_buttons)
     {
         disable_keyboard();
         enable_touchpad();
