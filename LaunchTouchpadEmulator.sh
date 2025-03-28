@@ -13,4 +13,4 @@ if ( ! [ -e /dev/uinput ] ) || \
 fi
 
 # Start TouchpadEmulator
-TouchpadEmulator
+TouchpadEmulator "$@"
