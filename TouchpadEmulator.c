@@ -98,6 +98,8 @@ enum
 char    query_buf[64]       = "";
 int     rotation            = 0;
 
+bool    no_keyboard         = false;
+
 int     button_0_fd         = 0;
 int     button_1_fd         = 0;
 int     slider_fd           = 0;
@@ -139,7 +141,10 @@ void emit(int fd, int type, int code, int val)
 
 void disable_keyboard()
 {
-    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+    if(!no_keyboard)
+    {
+        system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled false");
+    }
     keyboard_enable = 0;
 }
 
@@ -151,8 +156,11 @@ void disable_keyboard()
 
 void enable_keyboard()
 {
-    system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
-    system("busctl call --user sm.puri.OSK0 /sm/puri/OSK0 sm.puri.OSK0 SetVisible b true");
+    if(!no_keyboard)
+    {
+        system("gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true");
+        system("busctl call --user sm.puri.OSK0 /sm/puri/OSK0 sm.puri.OSK0 SetVisible b true");
+    }
     keyboard_enable = 1;
 }
 
@@ -918,6 +926,11 @@ int main(int argc, char* argv[])
         if(strcmp(option, "--no-buttons") == 0)
         {
             no_buttons = true;
+        }
+
+        if(strcmp(option, "--no-keyboard") == 0)
+        {
+            no_keyboard = true;
         }
 
         if(strcmp(option, "--no-slider") == 0)
