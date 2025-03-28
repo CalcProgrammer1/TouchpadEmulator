@@ -907,6 +907,7 @@ int main(int argc, char* argv[])
     bool rotation_override  = false;
     bool no_buttons         = false;
     bool no_slider          = false;
+    bool start_disabled     = false;
 
     /*-----------------------------------------------------*\
     | Process command line arguments                        |
@@ -971,6 +972,11 @@ int main(int argc, char* argv[])
             }
 
             arg_index++;
+        }
+
+        if(strcmp(option, "--start-disabled") == 0)
+        {
+            start_disabled = true;
         }
 
         arg_index++;
@@ -1213,9 +1219,9 @@ int main(int argc, char* argv[])
         }
     }
     /*-----------------------------------------------------*\
-    | If not using slider or buttons, default to touchpad   |
+    | If not starting with touchpad disabled, enable it     |
     \*-----------------------------------------------------*/
-    else if(no_buttons)
+    else if(!start_disabled)
     {
         disable_keyboard();
         enable_touchpad();
