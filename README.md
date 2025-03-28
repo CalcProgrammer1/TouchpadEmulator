@@ -41,9 +41,13 @@ make
 sudo make install
 ```
 
+Uninstall with `sudo make uninstall`
+
+#### Building Packages
+
 On Debian/Mobian you can build a .deb package using `dpkg-buildpackage -b`
 
-Uninstall with `sudo make uninstall`
+On Alpine/postmarketOS you can build a .apk package using `build-alpine.sh`
 
 #### Running
 
@@ -51,7 +55,10 @@ Uninstall with `sudo make uninstall`
 
 #### Permissions
 
-If installed from source, running LaunchTouchpadEmulator.sh will prompt for your password.  If installed via the Alpine package, the neccesary devices will be available to the `input` group.
+If installed from source, running LaunchTouchpadEmulator.sh will prompt for your password.  If installed via a distribution package, the neccesary devices will be available to the `input` group.  Otherwise, you can manually install:
+
+* `uinput.conf` to `/usr/lib/modules-load.d/`
+* `10-uinput.rules` to `/usr/lib/udev/rules.d/`
 
 You can add your user account (shown here as `user`) to the `input` group by running:
 
@@ -63,7 +70,9 @@ After a reboot, you should no longer be prompted for password when running Launc
 
 After setting up permissions, you can enable Touchpad Emulator to automatically start when you log in.
 
-* `cp /usr/share/applications/TouchpadEmulator.desktop ~/.config/autostart`
+* `LaunchTouchpadEmulator.sh --autostart`
+
+You can then edit the `~/.config/autostart/TouchpadEmulator-Autostart.desktop` file to add any desired command line arguments.  A 5 second sleep is added before autostarting by default to allow dbus to become ready, otherwise TouchpadEmulator may not be able to detect screen rotation changes.
 
 ## Controls
 
