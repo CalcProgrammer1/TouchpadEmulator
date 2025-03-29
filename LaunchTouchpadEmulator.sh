@@ -1,8 +1,9 @@
 #! /bin/bash
 
 if [ "$1" = "--autostart" ] ; then
-    AUTOSTART=""
+    mkdir -p ~/.config/autostart
 
+    AUTOSTART=""
     AUTOSTART+="[Desktop Entry]\r\n"
     AUTOSTART+="Type=Application\r\n"
     AUTOSTART+="Name=Touchpad Emulator Autostart\r\n"
