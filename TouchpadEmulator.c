@@ -8,7 +8,7 @@
 |   is controlled by dragging a finger on the touchscreen   |
 |   as if it were a laptop touchpad.                        |
 |                                                           |
-|   License: GNU GPL V2                                     |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 |                                                           |
 |   Adam Honse (CalcProgrammer1)                            |
 |   calcprogrammer1@gmail.com                               |
