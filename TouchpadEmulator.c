@@ -907,6 +907,7 @@ int main(int argc, char* argv[])
     bool rotation_override  = false;
     bool no_buttons         = false;
     bool no_slider          = false;
+    bool force_autorotation = false;
     bool start_disabled     = false;
 
     /*-----------------------------------------------------*\
@@ -922,6 +923,11 @@ int main(int argc, char* argv[])
         if(arg_index + 1 < argc)
         {
             argument    = argv[arg_index + 1];
+        }
+
+        if(strcmp(option, "--force-autorotation") == 0)
+        {
+            force_autorotation = true;
         }
 
         if(strcmp(option, "--no-buttons") == 0)
@@ -1068,8 +1074,16 @@ int main(int argc, char* argv[])
         const char* orientation = query_accelerometer_orientation();
         rotation = rotation_from_accelerometer_orientation(orientation);
 
-        if(rotation >= 0)
+        if(rotation >= 0 || force_autorotation)
         {
+            /*---------------------------------------------*\
+            | If force autorotation is active, default to 0 |
+            \*---------------------------------------------*/
+            if(rotation < 0)
+            {
+                rotation = 0;
+            }
+            
             /*---------------------------------------------*\
             | Start rotation monitor thread                 |
             \*---------------------------------------------*/
