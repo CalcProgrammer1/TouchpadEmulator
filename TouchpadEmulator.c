@@ -497,11 +497,18 @@ int rotation_from_accelerometer_orientation(const char* orientation)
 
 void *monitor_rotation(void *vargp)
 {
+    int temp_rotation;
+
     while(1)
     {
         sleep(1);
         const char* orientation = query_accelerometer_orientation();
-        rotation = rotation_from_accelerometer_orientation(orientation);   
+        temp_rotation = rotation_from_accelerometer_orientation(orientation);
+
+        if(temp_rotation >= 0)
+        {
+            rotation = temp_rotation;
+        }
     }
 }
 
