@@ -7,7 +7,7 @@ if [ "$1" = "--autostart" ] ; then
     AUTOSTART+="[Desktop Entry]\r\n"
     AUTOSTART+="Type=Application\r\n"
     AUTOSTART+="Name=Touchpad Emulator Autostart\r\n"
-    AUTOSTART+="Exec=sh -c \"sleep 5; LaunchTouchpadEmulator.sh --start-disabled\"\r\n"
+    AUTOSTART+="Exec=sh -c \"LaunchTouchpadEmulator.sh --start-disabled --force-autorotation\"\r\n"
     AUTOSTART+="Icon=TouchpadEmulator\r\n"
 
     echo -e $AUTOSTART > ~/.config/autostart/TouchpadEmulator-Autostart.desktop
